@@ -1,18 +1,19 @@
 #!/usr/bin/env python -u
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# grab-policemen-v2.py
+# get_reformagkh_data.py
 # Author: Maxim Dubinin (sim@gis-lab.info)
-# About: Grab mvd.ru data on local policemen, creates two tables linked by unique id, policemen and addresses they cover.
-# Created: 10.03.2014
-# Usage example: python grab-policemen-v2.py 45000000000
+# About: Grab reformagkh.ru data on buildings.
+# Created: 18.03.2014
+# Usage example: python get_reformagkh_data.py
 # ---------------------------------------------------------------------------
 
 from bs4 import BeautifulSoup
 import urllib2
 import csv
+from progressbar import *
 
-def get_housedata(link,house_id):
+def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     
     res = urllib2.urlopen(link + "/view/" + house_id)
     soup = BeautifulSoup(''.join(res.read()))
@@ -37,7 +38,10 @@ def get_housedata(link,house_id):
     year = trs[1].findAll("td")[1].text                              #gen6
     status = trs[2].findAll("td")[1].text                            #gen7
     mgmt_company = trs[3].findAll("td")[1].text                      #gen8
-    mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']  #gen5
+    if trs[3].findAll("td")[1].find("a"):
+        mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']  #gen5
+    else:
+        mgmt_company_link = ""
     
     
     #PASSPORT - mkd-table3
@@ -91,15 +95,15 @@ def get_housedata(link,house_id):
     ##ELEVATORS
     
     #MANAGEMENT
-    res = urllib2.urlopen(link + "/management/" + house_id)
-    soup = BeautifulSoup(''.join(res.read()))
+    #res = urllib2.urlopen(link + "/management/" + house_id)
+    #soup = BeautifulSoup(''.join(res.read()))
     
     #FINANCE
-    res = urllib2.urlopen(link + "/finance/" + house_id)
-    soup = BeautifulSoup(''.join(res.read()))
+    #res = urllib2.urlopen(link + "/finance/" + house_id)
+    #soup = BeautifulSoup(''.join(res.read()))
     
     #write to output
-    csvwriter_housedata.writerow(dict(HOUSE_ID=cad_no.encode("utf-8"),
+    csvwriter_housedata.writerow(dict(HOUSE_ID=house_id.encode("utf-8"),
                                       ADDRESS=address.encode("utf-8"),
                                       AREA=area.encode("utf-8"),
                                       AREA_LIVE=area_live.encode("utf-8"),
@@ -142,76 +146,88 @@ def get_housedata(link,house_id):
                                       WEAR_FUNDAMENT=wear_fundament.encode("utf-8"),
                                       WEAR_WALLS=wear_walls.encode("utf-8"),
                                       WEAR_PEREKR=wear_perekr.encode("utf-8"),
-                                      STATE=state.encode("utf-8")))
+                                      STATE=state.encode("utf-8"),
+                                      LVL1_NAME=lvl1_name.encode("utf-8"),
+                                      LVL1_ID=lvl1_id,
+                                      LVL1_LINK="http://www.reformagkh.ru/myhouse?tid=" + lvl1_id,
+                                      LVL2_NAME=lvl2_name.encode("utf-8"),
+                                      LVL2_ID=lvl2_id,
+                                      LVL2_LINK="http://www.reformagkh.ru/myhouse/list?tid=" + lvl2_id,))
 
-def get_addr(div,man_id):
-    lis = div.find("ul").findAll("li")
-    for li in lis:
+def get_lvl1_ids(link):
+    
+    res = urllib2.urlopen(link)
+    soup = BeautifulSoup(''.join(res.read()))
+    
+    locations = soup.findAll("td",{ "class" : "location" })
+    lvl1_ids = {}
+    for loc in locations:
+        name = loc.find("a").text.strip()
+        id = loc.find("a")['id'].replace("element_","")
+        lvl1_ids[name] = id
+    
+    return lvl1_ids
 
-        addrsrc = li.text
+def get_lvl2_ids(link):
+    res = urllib2.urlopen(link)
+    soup = BeautifulSoup(''.join(res.read()))
+    
+    locations = soup.findAll("td",{ "class" : "location" })
+    lvl2_ids = {}
+    for loc in locations:
+        if loc.find("a"):
+            name = loc.find("a").text.strip()
+            id = loc.find("a")['id'].replace("element_","")
+            lvl2_ids[name] = id
+    
+    return lvl2_ids
 
-        csvwriter_addrsrc.writerow(dict(MAN_ID=man_id,
-                        ADDR=addrsrc.encode("utf-8")))
-
-        addrs = addrsrc.split(",")
-        city = addrs[0].replace(u" (г)","")
-        street = addrs[1].split(" (")[0]
-        del addrs[0]
-        del addrs[0]
-
-        if len(addrs) > 0:
-            for addr in addrs:
-                res_addr = city + "," + street + "," + addr
-                csvwriter_addr.writerow(dict(MAN_ID=man_id,
-                        ADDR=res_addr.encode("utf-8")))
-        else:
-            res_addr = city + "," + street
-            csvwriter_addr.writerow(dict(MAN_ID=man_id,
-                        ADDR=res_addr.encode("utf-8")))   
-
-def get_photo(photo_url,man_id):
-    try:
-        u = urllib2.urlopen(photo_url)
-    except urllib2.URLError, e:
-        
-        get_photo_status = False
-        if hasattr(e, 'reason'):
-            print 'We failed to reach a server.'
-            print 'Reason: ', e.reason
-        elif hasattr(e, 'code'):
-            print 'The server couldn\'t fulfill the request.'
-            print 'Error code: ', e.code
-    else:
-        meta = u.info()
-        file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading photo: %s Kb: %s" % (man_id, file_size/1024)
-        f = open("photos/" + str(man_id) + ".jpg","wb")
-        file_size_dl = 0
-        block_sz = 8192
-        while True:
-            buffer = u.read(block_sz)
-            if not buffer:
-                break
-
-            file_size_dl += len(buffer)
-            f.write(buffer)
-            status = r"%10d [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-            status = status + chr(8)*(len(status)+1)
-            print status,
-
-        f.close()
-        get_photo_status = True
-    return get_photo_status
-
+def get_house_list(link):
+    res = urllib2.urlopen(link)
+    soup = BeautifulSoup(''.join(res.read()))
+    
+    houses_ids = []
+    houses = soup.findAll("td",{"class":"name"})
+    for house in houses:
+        house_id = house.find("a")['href'].split("/")[3]
+        houses_ids.append(house_id)
+    
+    return houses_ids
+    
 if __name__ == '__main__':
-    link = "http://www.reformagkh.ru/myhouse/"
-    house_id = 8625429
+    lvl1_link = "http://www.reformagkh.ru/myhouse?tid=2280999&sort=alphabet&item=mkd"
+    house_link = "http://www.reformagkh.ru/myhouse/"
+    #house_id = 8625429
 
     #init csv for housedata
     f_housedata = open("data/housedata.csv","wb")
-    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE")
+    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK")
+    fields_str = ",".join(fieldnames_data)
+    f_housedata.write(fields_str)
+    f_housedata.close()
+    
+    f_housedata = open("data/housedata.csv","ab")
+    
+    
     csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
     
-    res = get_housedata(link,str(house_id))
+    lvl1_ids = get_lvl1_ids(lvl1_link)
+    for lvl1_name in lvl1_ids:
+        lvl2_ids = get_lvl2_ids("http://www.reformagkh.ru/myhouse?tid=" + lvl1_ids[lvl1_name])
+        
+        for lvl2_name in lvl2_ids:
+            print lvl2_name
+            #get list of houses
+            houses_ids = get_house_list("http://www.reformagkh.ru/myhouse/list?tid=" + lvl2_ids[lvl2_name] + "&page=no")
+            
+            pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), " of " + str(len(houses_ids)), ' ', ETA()]).start()
+            pbar.maxval = len(houses_ids)
+            
+            i = 0
+            for house_id in houses_ids:
+                i = i+1
+                res = get_housedata(house_link,str(house_id),lvl1_name,lvl1_ids[lvl1_name],lvl2_name,lvl2_ids[lvl2_name])
+                pbar.update(pbar.currval+1)
+            pbar.finish()
 
     f_housedata.close()
