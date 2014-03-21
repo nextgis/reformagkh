@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # get_reformagkh_data.py
 # Author: Maxim Dubinin (sim@gis-lab.info)
-# About: Grab reformagkh.ru data on buildings.
+# About: Grab reformagkh.ru data on buildings, put it in the CSV table.
 # Created: 18.03.2014
 # Usage example: python get_reformagkh_data.py
 # ---------------------------------------------------------------------------
@@ -17,12 +17,14 @@ import socket
 
 
 def console_out(text):
+    #write httplib error messages to console
     time_current = datetime.datetime.now()
     timestamp = time_current.strftime('%Y-%m-%d %H:%M:%S')
     
     f_errors.write(timestamp + ": "+ text)
 
 def urlopen_house(link,id):
+    #fetch html data on a house
     numtries = 5
     timeoutvalue = 40
     
@@ -65,11 +67,13 @@ def urlopen_house(link,id):
     return res
 
 def extract_value(mkdtable,code):
+  #extract value for general attributes
   tr = mkdtable.find('td', {'class':'col-num'}, text = str(code)).parent
   res = tr.find('td',{'class':'b-td_value-def'}).text.strip()
   return res
 
 def extract_value_descr(mkdtable):
+  #extract value for description field
   div = mkdtable.find("div",{'style':'position: relative;'})
   if div.find("p"):
         res = div.find("p").text.strip()
@@ -78,7 +82,9 @@ def extract_value_descr(mkdtable):
   return res
 
 def extract_value_constr(mkdtable):
-  #TODO deal with popup text boxes, currently only first non-null <p> is being returned
+  #extract value for construction features field
+
+  #TODO deal with popup text boxes that might(?) contain more information, currently only first non-null <p> is being returned
   div = mkdtable.findAll('div',{'style':'position: relative;'})[1]
   if len(div.findAll('p')) > 0:
       if div.findAll('p')[0] != '': 
@@ -91,16 +97,19 @@ def extract_value_constr(mkdtable):
   return res
 
 def extract_value_area(mkdtable):
+  #extract values for various living area
   areas = mkdtable.findAll('tr',{'class':'field_tp_square_all'})
 
   return areas[0].findAll('td')[2].text,areas[1].findAll('td')[2].text,areas[2].findAll('td')[2].text
 
 def extract_value_heat(mkdtable):
+  #extract values for heat exchange
   heats = mkdtable.findAll('tr',{'class':'group_tp_building_term_charact'})
 
   return heats[0].findAll('td')[2].text,heats[1].findAll('td')[2].text
 
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
+  #process house data to get main attributes
     res = urlopen_house(link + "/view/" + house_id,house_id)
     
     if res != False:
@@ -108,7 +117,6 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         
         address = soup.find("div", { "class" : "border-block" }).find("h1").find("span").text
         mkdtables = soup.findAll("table", { "class" : "mkd-table" })
-        
         
         #GENERAL - mkd-table1,2
         mkdtable = mkdtables[0]
@@ -127,7 +135,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         status = trs[2].findAll("td")[1].text                            #gen7
         mgmt_company = trs[3].findAll("td")[1].text                      #gen8
         if trs[3].findAll("td")[1].find("a"):
-            mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']  #gen5
+            mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']                                                   #gen9
         else:
             mgmt_company_link = ""
         
@@ -170,10 +178,48 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         wear_fundament = trs[1].findAll("td")[1].text.strip()            #stat2
         wear_walls = trs[2].findAll("td")[1].text.strip()                #stat3
         wear_perekr = trs[3].findAll("td")[1].text.strip()               #stat4
-        state = soup.find("div", { "class" : "block-title" }).find('span').text  #stat4
+        state = soup.find("div", { "class" : "block-title" }).find('span').text  #stat5
         
         ##CONSTRUCTION - mkd-table4
-        
+        mkdtable = mkdtables[3]
+
+        ###Facade
+        facade_area_tot = extract_value(mkdtable, '1')                   #1
+        facade_area_sht = extract_value(mkdtable, '2')                   #2
+        facade_area_unsht = extract_value(mkdtable, '3')                 #3
+        facade_area_panel = extract_value(mkdtable, '4')                 #4
+        facade_area_plit = extract_value(mkdtable, '5')                  #5
+        facade_area_side = extract_value(mkdtable, '6')                  #6
+        facade_area_wood = extract_value(mkdtable, '7')                  #7
+        facadewarm_area_sht = extract_value(mkdtable, '8')               #8
+        facadewarm_area_plit = extract_value(mkdtable, '9')              #9
+        facadewarm_area_side = extract_value(mkdtable, '10')              #10
+        facade_area_otmost = extract_value(mkdtable, '11')                #11
+        facade_garea_glassw = extract_value(mkdtable, '12')               #12
+        facade_garea_glassp = extract_value(mkdtable, '13')               #13
+        facade_iarea_glassw = extract_value(mkdtable, '14')               #14
+        facade_iarea_glassp = extract_value(mkdtable, '15')               #15
+        facade_area_door_met = extract_value(mkdtable, '16')              #16
+        facade_area_door_oth = extract_value(mkdtable, '17')              #17
+        facade_capfix_year = extract_value(mkdtable, '18')                #18
+        ###Roof
+        roof_area_tot = extract_value(mkdtable, '19')                     #19
+        roof_area_shif = extract_value(mkdtable, '20')                    #20
+        roof_area_met = extract_value(mkdtable, '21')                     #21
+        roof_area_oth = extract_value(mkdtable, '22')                     #22
+        roof_area_flat = extract_value(mkdtable, '23')                    #23
+        roof_capfix_year = extract_value(mkdtable, '24')                  #24
+        ###Basement
+        base_descr = extract_value(mkdtable, '25')                        #25
+        base_area = extract_value(mkdtable, '26')                         #26
+        base_capfix_year = extract_value(mkdtable, '27')                  #27
+        ###Public areas
+        publ_area = extract_value(mkdtable, '28')                         #28
+        publ_capfix_year = extract_value(mkdtable, '29')                  #29
+        ###Tras
+        trash_num = extract_value(mkdtable, '30')                         #30
+        trash_capfix_year = extract_value(mkdtable, '31')                 #31
+
         ##NETWORKS - mkd-table5
         
         ##ELEVATORS
@@ -232,6 +278,37 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                                           WEAR_WALLS=wear_walls.encode("utf-8"),
                                           WEAR_PEREKR=wear_perekr.encode("utf-8"),
                                           STATE=state.encode("utf-8"),
+                                          facade_area_tot=facade_area_tot.encode("utf-8"),
+                                          facade_area_sht=facade_area_sht.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
+                                          NAME=name.encode("utf-8"),
                                           LVL1_NAME=lvl1_name.encode("utf-8"),
                                           LVL1_ID=lvl1_id,
                                           LVL1_LINK="http://www.reformagkh.ru/myhouse?tid=" + lvl1_id,
