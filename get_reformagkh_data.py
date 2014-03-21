@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup
 import urllib2
 import csv
 from progressbar import *
+from httplib import BadStatusLine,IncompleteRead
+import socket
 
 
 def console_out(text):
