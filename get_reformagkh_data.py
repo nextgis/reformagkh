@@ -62,6 +62,42 @@ def urlopen_house(link,id):
     
     return res
 
+def extract_value(mkdtable,code):
+  tr = mkdtable.find('td', {'class':'col-num'}, text = str(code)).parent
+  res = tr.find('td',{'class':'b-td_value-def'}).text.strip()
+  return res
+
+def extract_value_descr(mkdtable):
+  div = mkdtable.find("div",{'style':'position: relative;'})
+  if div.find("p"):
+        res = div.find("p").text.strip()
+  else:
+        res = div.text.strip()
+  return res
+
+def extract_value_constr(mkdtable):
+  #TODO deal with popup text boxes, currently only first non-null <p> is being returned
+  div = mkdtable.findAll('div',{'style':'position: relative;'})[1]
+  if len(div.findAll('p')) > 0:
+      if div.findAll('p')[0] != '': 
+        res = div.findAll('p')[0].text
+      else:
+        res = div.findAll('p')[1].text
+  else:
+      res = div.text.strip()
+
+  return res
+
+def extract_value_area(mkdtable):
+  areas = mkdtable.findAll('tr',{'class':'field_tp_square_all'})
+
+  return areas[0].findAll('td')[2].text,areas[1].findAll('td')[2].text,areas[2].findAll('td')[2].text
+
+def extract_value_heat(mkdtable):
+  heats = mkdtable.findAll('tr',{'class':'group_tp_building_term_charact'})
+
+  return heats[0].findAll('td')[2].text,heats[1].findAll('td')[2].text
+
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     res = urlopen_house(link + "/view/" + house_id,house_id)
     
@@ -97,37 +133,33 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         #PASSPORT - mkd-table3
         ##GENERAL
         mkdtable = mkdtables[2]
-        trs = mkdtable.findAll("tr")
 
-        serie = trs[0].findAll("td")[2].text                            #1
-        descript = trs[2].findAll("td")[1].text.strip()                 #2
-        house_name = trs[3].findAll("td")[2].text                       #3
-        house_type = trs[4].findAll("td")[2].text                       #4
-        year2 = trs[5].findAll("td")[2].text                            #5
-        wall_mat = trs[6].findAll("td")[2].text                         #6
-        perekr_type = trs[7].findAll("td")[2].text                      #7
-        levels = trs[8].findAll("td")[2].text                           #8
-        doors = trs[9].findAll("td")[2].text                            #9
-        elevators = trs[10].findAll("td")[2].text                       #10
-        area2 = trs[11].findAll("td")[2].text                           #11
-        area_live_total = trs[12].findAll("td")[2].text                 #12
-        area_live_priv = trs[13].findAll("td")[2].text                  #12
-        area_live_munic = trs[14].findAll("td")[2].text                 #12
-        area_live_state = trs[15].findAll("td")[2].text                 #12
-        area_nonlive2 = trs[16].findAll("td")[2].text                   #13
-        area_uch = trs[17].findAll("td")[2].text                        #14
-        area_near = trs[18].findAll("td")[2].text                       #15
-        no_inventory = trs[19].findAll("td")[2].text                    #16
-        cad_no2 = trs[20].findAll("td")[2].text                         #17
-        apts = trs[21].findAll("td")[2].text                            #18
-        people = trs[22].findAll("td")[2].text                          #19
-        accounts = trs[23].findAll("td")[2].text                        #20
-        constr_feat = trs[25].findAll("td")[1].text.strip()             #21
-        heat_fact = trs[27].findAll("td")[2].text                       #21
-        heat_norm = trs[28].findAll("td")[2].text                       #21
-        energy_class = trs[29].findAll("td")[2].text                    #22
-        energy_audit_date = trs[30].findAll("td")[2].text               #23
-        privat_date = trs[31].findAll("td")[2].text                     #24
+        serie = extract_value(mkdtable, '1')                            #1
+        descript = extract_value_descr(mkdtable)                        #2
+        house_name = extract_value(mkdtable, '3')                       #3
+        house_type = extract_value(mkdtable, '4')                       #4
+        year2 = extract_value(mkdtable, '5')                            #5
+        wall_mat = extract_value(mkdtable, '6')                         #6
+        perekr_type = extract_value(mkdtable, '7')                      #7
+        levels = extract_value(mkdtable, '8')                           #8
+        doors = extract_value(mkdtable, '9')                            #9
+        elevators = extract_value(mkdtable, '10')                       #10
+        area2 = extract_value(mkdtable, '11')                           #11
+        area_live_total = extract_value(mkdtable, '12')                 #12
+        area_live_priv,area_live_munic,area_live_state =  extract_value_area(mkdtable)
+        area_nonlive2 = extract_value(mkdtable, '13')                   #13
+        area_uch = extract_value(mkdtable, '14')                        #14
+        area_near = extract_value(mkdtable, '15')                       #15
+        no_inventory = extract_value(mkdtable, '16')                    #16
+        cad_no2 = extract_value(mkdtable, '17')                         #17
+        apts = extract_value(mkdtable, '18')                            #18
+        people = extract_value(mkdtable, '19')                          #19
+        accounts = extract_value(mkdtable, '20')                        #20
+        constr_feat = extract_value_constr(mkdtable)                    #21
+        heat_fact,heat_norm = extract_value_heat(mkdtable)
+        energy_class = extract_value(mkdtable, '23')                    #22
+        energy_audit_date = extract_value(mkdtable, '24')               #23
+        privat_date = extract_value(mkdtable, '25')                     #24
         
         statstable = soup.find("table", { "class" : "statistic" })
         trs = statstable.findAll("tr")
@@ -187,6 +219,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                                           APTS=apts.encode("utf-8"),
                                           PEOPLE=people.encode("utf-8"),
                                           ACCOUNTS=accounts.encode("utf-8"),
+                                          CONSTR_FEAT=constr_feat.encode("utf-8"),
                                           HEAT_FACT=heat_fact.encode("utf-8"),
                                           HEAT_NORM=heat_norm.encode("utf-8"),
                                           ENERGY_CLASS=energy_class.encode("utf-8"),
@@ -254,9 +287,9 @@ if __name__ == '__main__':
     
     #init csv for housedata
     f_housedata = open("data/housedata.csv","wb")
-    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK")
+    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","CONSTR_FEAT","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK")
     fields_str = ",".join(fieldnames_data)
-    f_housedata.write(fields_str)
+    f_housedata.write(fields_str+'\n')
     f_housedata.close()
     
     f_housedata = open("data/housedata.csv","ab")
