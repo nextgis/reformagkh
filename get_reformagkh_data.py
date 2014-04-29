@@ -69,7 +69,11 @@ def urlopen_house(link,id):
 def extract_value(mkdtable,code):
   #extract value for general attributes
   tr = mkdtable.find('td', {'class':'col-num'}, text = str(code)).parent
-  res = tr.find('td',{'class':'b-td_value-def'}).text.strip()
+  if tr.find('td',{'class':'b-td_value-def'}):
+      res = tr.find('td',{'class':'b-td_value-def'}).text.strip()
+  elif len(tr.findAll("td")) == 3:
+      res = tr.findAll("td")[2].text.strip()
+      
   return res
 
 def extract_value_descr(mkdtable):
@@ -118,7 +122,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         address = soup.find("div", { "class" : "border-block" }).find("h1").find("span").text
         mkdtables = soup.findAll("table", { "class" : "mkd-table" })
         
-        #GENERAL - mkd-table1,2
+        #GENERAL
         mkdtable = mkdtables[0]
         trs = mkdtable.findAll("tr")
 
@@ -135,12 +139,12 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         status = trs[2].findAll("td")[1].text                            #gen7
         mgmt_company = trs[3].findAll("td")[1].text                      #gen8
         if trs[3].findAll("td")[1].find("a"):
-            mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']                                                   #gen9
+            mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']                                                             #gen9
         else:
             mgmt_company_link = ""
         
         
-        #PASSPORT - mkd-table3
+        #PASSPORT
         ##GENERAL
         mkdtable = mkdtables[2]
 
@@ -180,7 +184,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         wear_perekr = trs[3].findAll("td")[1].text.strip()               #stat4
         state = soup.find("div", { "class" : "block-title" }).find('span').text  #stat5
         
-        ##CONSTRUCTION - mkd-table4
+        ##CONSTRUCTION
         mkdtable = mkdtables[3]
 
         ###Facade
@@ -220,7 +224,21 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         trash_num = extract_value(mkdtable, '30')                         #30
         trash_capfix_year = extract_value(mkdtable, '31')                 #31
 
-        ##NETWORKS - mkd-table5
+        ##NETWORKS
+        mkdtable = mkdtables[4]
+        
+        ###heating
+        
+        ###hot water
+        
+        ###cold water
+        
+        ###sewage
+        
+        ###electricity
+        
+        ###gas
+        
         
         ##ELEVATORS
         
@@ -233,7 +251,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         #soup = BeautifulSoup(''.join(res))
         
         #write to output
-        csvwriter_housedata.writerow(dict(HOUSE_ID=house_id.encode("utf-8"),
+        csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
                                           ADDRESS=address.encode("utf-8"),
                                           AREA=area.encode("utf-8"),
                                           AREA_LIVE=area_live.encode("utf-8"),
@@ -278,43 +296,44 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                                           WEAR_WALLS=wear_walls.encode("utf-8"),
                                           WEAR_PEREKR=wear_perekr.encode("utf-8"),
                                           STATE=state.encode("utf-8"),
-                                          facade_area_tot=facade_area_tot.encode("utf-8"),
-                                          facade_area_sht=facade_area_sht.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
-                                          NAME=name.encode("utf-8"),
+                                          FACADE_AREA_TOT=facade_area_tot.encode("utf-8"),
+                                          FACADE_AREA_SHT=facade_area_sht.encode("utf-8"),
+                                          FACADE_AREA_UNSHT=facade_area_unsht.encode("utf-8"),
+                                          FACADE_AREA_PANEL=facade_area_panel.encode("utf-8"),
+                                          FACADE_AREA_PLIT=facade_area_plit.encode("utf-8"),
+                                          FACADE_AREA_SIDE=facade_area_side.encode("utf-8"),
+                                          FACADE_AREA_WOOD=facade_area_wood.encode("utf-8"),
+                                          FACADEWARM_AREA_SHT=facadewarm_area_sht.encode("utf-8"),
+                                          FACADEWARM_AREA_PLIT=facadewarm_area_plit.encode("utf-8"),
+                                          FACADEWARM_AREA_SIDE=facadewarm_area_side.encode("utf-8"),
+                                          FACADE_AREA_OTMOST=facade_area_otmost.encode("utf-8"),
+                                          FACADE_GAREA_GLASSW=facade_garea_glassw.encode("utf-8"),
+                                          FACADE_GAREA_GLASSP=facade_garea_glassp.encode("utf-8"),
+                                          FACADE_IAREA_GLASSW=facade_iarea_glassw.encode("utf-8"),
+                                          FACADE_IAREA_GLASSP=facade_iarea_glassp.encode("utf-8"),
+                                          FACADE_AREA_DOOR_MET=facade_area_door_met.encode("utf-8"),
+                                          FACADE_AREA_DOOR_OTH=facade_area_door_oth.encode("utf-8"),
+                                          FACADE_CAPFIX_YEAR=facade_capfix_year.encode("utf-8"),
+                                          ROOF_AREA_TOT=roof_area_tot.encode("utf-8"),
+                                          ROOF_AREA_SHIF=roof_area_shif.encode("utf-8"),
+                                          ROOF_AREA_MET=roof_area_met.encode("utf-8"),
+                                          ROOF_AREA_OTH=roof_area_oth.encode("utf-8"),
+                                          ROOF_AREA_FLAT=roof_area_flat.encode("utf-8"),
+                                          ROOF_CAPFIX_YEAR=roof_capfix_year.encode("utf-8"),
+                                          BASE_DESCR=base_descr.encode("utf-8"),
+                                          BASE_AREA=base_area.encode("utf-8"),
+                                          BASE_CAPFIX_YEAR=base_capfix_year.encode("utf-8"),
+                                          PUBL_AREA=publ_area.encode("utf-8"),
+                                          PUBL_CAPFIX_YEAR=publ_capfix_year.encode("utf-8"),
+                                          TRASH_NUM=trash_num.encode("utf-8"),
+                                          TRASH_CAPFIX_YEAR=trash_capfix_year.encode("utf-8"),
                                           LVL1_NAME=lvl1_name.encode("utf-8"),
                                           LVL1_ID=lvl1_id,
                                           LVL1_LINK="http://www.reformagkh.ru/myhouse?tid=" + lvl1_id,
                                           LVL2_NAME=lvl2_name.encode("utf-8"),
                                           LVL2_ID=lvl2_id,
-                                          LVL2_LINK="http://www.reformagkh.ru/myhouse/list?tid=" + lvl2_id,))
+                                          LVL2_LINK="http://www.reformagkh.ru/myhouse/list?tid=" + lvl2_id,
+                                          HOUSE_LINK="http://www.reformagkh.ru/myhouse/view/" + house_id))
 
 def get_lvl1_ids(link):
     
@@ -366,7 +385,7 @@ if __name__ == '__main__':
     
     #init csv for housedata
     f_housedata = open("data/housedata.csv","wb")
-    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","CONSTR_FEAT","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK")
+    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","CONSTR_FEAT","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","FACADE_AREA_TOT","FACADE_AREA_SHT","FACADE_AREA_UNSHT","FACADE_AREA_PANEL","FACADE_AREA_PLIT","FACADE_AREA_SIDE","FACADE_AREA_WOOD","FACADEWARM_AREA_SHT","FACADEWARM_AREA_PLIT","FACADEWARM_AREA_SIDE","FACADE_AREA_OTMOST","FACADE_GAREA_GLASSW","FACADE_GAREA_GLASSP","FACADE_IAREA_GLASSW","FACADE_IAREA_GLASSP","FACADE_AREA_DOOR_MET","FACADE_AREA_DOOR_OTH","FACADE_CAPFIX_YEAR","ROOF_AREA_TOT","ROOF_AREA_SHIF","ROOF_AREA_MET","ROOF_AREA_OTH","ROOF_AREA_FLAT","ROOF_CAPFIX_YEAR","BASE_DESCR","BASE_AREA","BASE_CAPFIX_YEAR","PUBL_AREA","PUBL_CAPFIX_YEAR","TRASH_NUM","TRASH_CAPFIX_YEAR","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK","HOUSE_LINK")
     fields_str = ",".join(fieldnames_data)
     f_housedata.write(fields_str+'\n')
     f_housedata.close()
