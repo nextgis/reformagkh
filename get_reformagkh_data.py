@@ -85,7 +85,7 @@ def extract_value_constr(trs,num):
 
   #TODO deal with popup text boxes that might(?) contain more information, currently only first non-null <p> is being returned
   tr = trs[num]
-  res = tr.findAll("td")[0].text.strip()  
+  res = tr.findAll("td")[0].findAll("span")[1].text.strip()  
 
   return res
 
@@ -128,6 +128,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         mgmt_company = trs[0].findAll("td")[1].text.strip()              #gen8 Домом управляет
         if trs[0].findAll("td")[1].find("a"):
             mgmt_company_link = "http://www.reformagkh.ru" + trs[0].findAll("td")[1].find("a")['href']
+            mgmt_company_link = mgmt_company_link.split("?")[0]
         else:
             mgmt_company_link = ""
 
@@ -142,6 +143,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         table3 = tables[3]
         trs = table3.findAll("tr")        
         lastupdate = trs[1].findAll("td")[1].text.strip()                #gen2 Последнее изменение анкеты
+        lastupdate = ' '.join(lastupdate.replace("\n","").split())
         servicedate_start = trs[3].findAll("td")[1].text.strip()         #gen3 Дата начала обслуживания дома
         servicedate_end = trs[5].findAll("td")[1].text.strip()           #gen4 Плановая дата прекращения обслуживания дома
 
