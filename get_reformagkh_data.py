@@ -66,166 +66,188 @@ def urlopen_house(link,id):
     
     return res
 
-def extract_value(mkdtable,code):
+def extract_value(trs,num):
   #extract value for general attributes
-  tr = mkdtable.find('td', {'class':'col-num'}, text = str(code)).parent
-  if tr.find('td',{'class':'b-td_value-def'}):
-      res = tr.find('td',{'class':'b-td_value-def'}).text.strip()
-  elif len(tr.findAll("td")) == 3:
-      res = tr.findAll("td")[2].text.strip()
+  tr = trs[num]
+  res = tr.findAll("td")[1].text.strip()
       
   return res
 
-def extract_value_descr(mkdtable):
+def extract_value_descr(trs,num):
   #extract value for description field
-  div = mkdtable.find("div",{'style':'position: relative;'})
-  if div.find("p"):
-        res = div.find("p").text.strip()
-  else:
-        res = div.text.strip()
+  tr = trs[num]
+  res = tr.findAll("td")[0].findAll("span")[1].text.strip()
+
   return res
 
-def extract_value_constr(mkdtable):
+def extract_value_constr(trs,num):
   #extract value for construction features field
 
   #TODO deal with popup text boxes that might(?) contain more information, currently only first non-null <p> is being returned
-  div = mkdtable.findAll('div',{'style':'position: relative;'})[1]
-  if len(div.findAll('p')) > 0:
-      if div.findAll('p')[0] != '': 
-        res = div.findAll('p')[0].text
-      else:
-        res = div.findAll('p')[1].text
-  else:
-      res = div.text.strip()
+  tr = trs[num]
+  res = tr.findAll("td")[0].text.strip()  
 
   return res
 
-def extract_value_area(mkdtable):
+def extract_value_area(trs,num):
   #extract values for various living area
-  areas = mkdtable.findAll('tr',{'class':'field_tp_square_all'})
+  tr = trs[num]
+  
+  area_live_total = tr.find("td").find("span").text.split(" - ")[1]
+  trs = tr.findAll("tr")
+  area_live_priv = trs[1].text.strip()
+  area_live_munic = trs[3].text.strip()
+  area_live_state = trs[5].text.strip()
 
-  return areas[0].findAll('td')[2].text,areas[1].findAll('td')[2].text,areas[2].findAll('td')[2].text
+  return area_live_total,area_live_priv,area_live_munic,area_live_state
 
-def extract_value_heat(mkdtable):
+def extract_value_heat(trs,num):
   #extract values for heat exchange
-  heats = mkdtable.findAll('tr',{'class':'group_tp_building_term_charact'})
+  trs = trs[num].findAll("tr")
 
-  return heats[0].findAll('td')[2].text,heats[1].findAll('td')[2].text
+  heat_fact = trs[1].text.strip()
+  heat_norm = trs[3].text.strip()
+
+  return heat_fact,heat_norm
 
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
-  #process house data to get main attributes
-    res = urlopen_house(link + "/view/" + house_id,house_id)
+    #process house data to get main attributes
+    res = urlopen_house(link + "view/" + house_id,house_id)
     
     if res != False:
         soup = BeautifulSoup(''.join(res))
         
-        address = soup.find("div", { "class" : "border-block" }).find("h1").find("span").text
-        mkdtables = soup.findAll("table", { "class" : "mkd-table" })
+        address = soup.find("div", { "class" : "loc_name float-left width650 word-wrap-break-word" }).text.strip()
         
         #GENERAL
-        mkdtable = mkdtables[0]
-        trs = mkdtable.findAll("tr")
+        div = soup.find("div", { "class" : "fr" })
+        tables = div.findAll("table")
+        table0 = tables[0]
+        trs = table0.findAll("tr")
 
-        area = trs[0].findAll("td")[1].text                              #gen1
-        area_live = trs[3].findAll("td")[1].text                         #gen2
-        area_nonlive = trs[3].findAll("td")[1].text                      #gen3
-        area_general = trs[3].findAll("td")[1].text                      #gen4
-
-        mkdtable = mkdtables[1]
-        trs = mkdtable.findAll("tr")
-
-        cad_no = trs[0].findAll("td")[1].text                            #gen5
-        year = trs[1].findAll("td")[1].text                              #gen6
-        status = trs[2].findAll("td")[1].text                            #gen7
-        mgmt_company = trs[3].findAll("td")[1].text                      #gen8
-        if trs[3].findAll("td")[1].find("a"):
-            mgmt_company_link = "http://www.reformagkh.ru" + trs[3].findAll("td")[1].find("a")['href']                                                             #gen9
+        mgmt_company = trs[0].findAll("td")[1].text.strip()              #gen8 Домом управляет
+        if trs[0].findAll("td")[1].find("a"):
+            mgmt_company_link = "http://www.reformagkh.ru" + trs[0].findAll("td")[1].find("a")['href']
         else:
             mgmt_company_link = ""
-        
-        
+
+        status = trs[1].findAll("td")[1].text.strip()                    #gen7 Состояние дома
+
+        table2 = tables[2]
+        trs = table2.findAll("tr")
+        area = trs[1].findAll("td")[1].text.strip()                      #gen1 Общая площадь
+        cad_no = trs[3].findAll("td")[1].text.strip()                    #gen5 Кадастровый номер
+        year = trs[5].findAll("td")[1].text.strip()                      #gen6 Год ввода в экспл
+
+        table3 = tables[3]
+        trs = table3.findAll("tr")        
+        lastupdate = trs[1].findAll("td")[1].text.strip()                #gen2 Последнее изменение анкеты
+        servicedate_start = trs[3].findAll("td")[1].text.strip()         #gen3 Дата начала обслуживания дома
+        servicedate_end = trs[5].findAll("td")[1].text.strip()           #gen4 Плановая дата прекращения обслуживания дома
+
+        #TODO extract lat/long coords
+
         #PASSPORT
         ##GENERAL
-        mkdtable = mkdtables[2]
+        divs = soup.findAll("div", { "class" : "numbered" })
+        div0 = divs[0]
+        trs = div0.findAll("tr")
 
-        serie = extract_value(mkdtable, '1')                            #1
-        descript = extract_value_descr(mkdtable)                        #2
-        house_name = extract_value(mkdtable, '3')                       #3
-        house_type = extract_value(mkdtable, '4')                       #4
-        year2 = extract_value(mkdtable, '5')                            #5
-        wall_mat = extract_value(mkdtable, '6')                         #6
-        perekr_type = extract_value(mkdtable, '7')                      #7
-        levels = extract_value(mkdtable, '8')                           #8
-        doors = extract_value(mkdtable, '9')                            #9
-        elevators = extract_value(mkdtable, '10')                       #10
-        area2 = extract_value(mkdtable, '11')                           #11
-        area_live_total = extract_value(mkdtable, '12')                 #12
-        area_live_priv,area_live_munic,area_live_state =  extract_value_area(mkdtable)
-        area_nonlive2 = extract_value(mkdtable, '13')                   #13
-        area_uch = extract_value(mkdtable, '14')                        #14
-        area_near = extract_value(mkdtable, '15')                       #15
-        no_inventory = extract_value(mkdtable, '16')                    #16
-        cad_no2 = extract_value(mkdtable, '17')                         #17
-        apts = extract_value(mkdtable, '18')                            #18
-        people = extract_value(mkdtable, '19')                          #19
-        accounts = extract_value(mkdtable, '20')                        #20
-        constr_feat = extract_value_constr(mkdtable)                    #21
-        heat_fact,heat_norm = extract_value_heat(mkdtable)
-        energy_class = extract_value(mkdtable, '23')                    #22
-        energy_audit_date = extract_value(mkdtable, '24')               #23
-        privat_date = extract_value(mkdtable, '25')                     #24
+        serie = extract_value(trs, 1)                            #1 Серия
+        descript = extract_value_descr(trs, 2)                   #2 Описание местоположения
+        house_name = extract_value(trs, 4)                       #3 Индивидуальное наименование дома
+        house_type = extract_value(trs, 6)                       #4 Тип жилого дома
+        year2 = extract_value(trs, 8)                            #5 Год ввода в эксплуатацию
+        wall_mat = extract_value(trs, 10)                        #6 Материал стен
+        perekr_type = extract_value(trs, 12)                     #7 Тип перекрытий
+        levels = extract_value(trs, 14)                          #8 Этажность
+        doors = extract_value(trs, 16)                           #9 Количество подъездов
+        elevators = extract_value(trs, 18)                       #10 Количество лифтов
+        area2 = extract_value(trs, 20)                           #11 Общая площадь
+        area_live_total,area_live_priv,area_live_munic,area_live_state = extract_value_area(trs, 21)        #12 Площадь жилых помещений
+        area_nonlive2 = extract_value(trs, 29)                   #13 Площадь нежилых помещений
+        area_uch = extract_value(trs, 31)                        #14 Площадь участка
+        area_near = extract_value(trs, 33)                       #15 Площадь придомовой территории
+        no_inventory = extract_value(trs, 35)                    #16 Инвентарный номер
+        cad_no2 = extract_value(trs, 37)                         #17 Кадастровый номер участка
+        apts = extract_value(trs, 39)                            #18 Количество квартир
+        people = extract_value(trs, 41)                          #19 Количество жителей
+        accounts = extract_value(trs, 43)                        #20 Количество лицевых счетов
+        constr_feat = extract_value_constr(trs,44)               #21 Конструктивные особенности дома
+        heat_fact,heat_norm = extract_value_heat(trs,45)         #22 Удельная тепловая характеристика здания
+        energy_class = extract_value(trs, 51)                    #23 Класс энергоэффективности
+        energy_audit_date = extract_value(trs, 53)               #24 Дата проведения энергетического аудита
+        privat_date = extract_value(trs, 55)                     #25 Дата начала приватизации
         
-        statstable = soup.find("table", { "class" : "statistic" })
-        trs = statstable.findAll("tr")
+        div_sub = soup.find("div", { "class" : "rating_block fr w475" })
+        table = div_sub.find("table")
+        trs = div_sub.findAll("tr")
 
-        wear_tot = trs[0].findAll("td")[1].text.strip()                  #stat1
-        wear_fundament = trs[1].findAll("td")[1].text.strip()            #stat2
-        wear_walls = trs[2].findAll("td")[1].text.strip()                #stat3
-        wear_perekr = trs[3].findAll("td")[1].text.strip()               #stat4
-        state = soup.find("div", { "class" : "block-title" }).find('span').text  #stat5
+        wear_tot = extract_value(trs,1)                          #stat1 Общая степень износа
+        wear_fundament = extract_value(trs,3)                    #stat2 Степень износа фундамента
+        wear_walls = extract_value(trs,5)                        #stat3 Степень износа несущих стен
+        wear_perekr = extract_value(trs,7)                       #stat4 Степень износа перекрытий
+        state = ""                                                 #stat5 TODO, тут был общий статус, возможно его больше нет, надо проверить
         
         ##CONSTRUCTION
-        mkdtable = mkdtables[3]
 
         ###Facade
-        facade_area_tot = extract_value(mkdtable, '1')                   #1
-        facade_area_sht = extract_value(mkdtable, '2')                   #2
-        facade_area_unsht = extract_value(mkdtable, '3')                 #3
-        facade_area_panel = extract_value(mkdtable, '4')                 #4
-        facade_area_plit = extract_value(mkdtable, '5')                  #5
-        facade_area_side = extract_value(mkdtable, '6')                  #6
-        facade_area_wood = extract_value(mkdtable, '7')                  #7
-        facadewarm_area_sht = extract_value(mkdtable, '8')               #8
-        facadewarm_area_plit = extract_value(mkdtable, '9')              #9
-        facadewarm_area_side = extract_value(mkdtable, '10')              #10
-        facade_area_otmost = extract_value(mkdtable, '11')                #11
-        facade_garea_glassw = extract_value(mkdtable, '12')               #12
-        facade_garea_glassp = extract_value(mkdtable, '13')               #13
-        facade_iarea_glassw = extract_value(mkdtable, '14')               #14
-        facade_iarea_glassp = extract_value(mkdtable, '15')               #15
-        facade_area_door_met = extract_value(mkdtable, '16')              #16
-        facade_area_door_oth = extract_value(mkdtable, '17')              #17
-        facade_capfix_year = extract_value(mkdtable, '18')                #18
-        ###Roof
-        roof_area_tot = extract_value(mkdtable, '19')                     #19
-        roof_area_shif = extract_value(mkdtable, '20')                    #20
-        roof_area_met = extract_value(mkdtable, '21')                     #21
-        roof_area_oth = extract_value(mkdtable, '22')                     #22
-        roof_area_flat = extract_value(mkdtable, '23')                    #23
-        roof_capfix_year = extract_value(mkdtable, '24')                  #24
-        ###Basement
-        base_descr = extract_value(mkdtable, '25')                        #25
-        base_area = extract_value(mkdtable, '26')                         #26
-        base_capfix_year = extract_value(mkdtable, '27')                  #27
-        ###Public areas
-        publ_area = extract_value(mkdtable, '28')                         #28
-        publ_capfix_year = extract_value(mkdtable, '29')                  #29
-        ###Tras
-        trash_num = extract_value(mkdtable, '30')                         #30
-        trash_capfix_year = extract_value(mkdtable, '31')                 #31
+        div1 = divs[1]
+        trs = div1.findAll("tr")
 
-        ##NETWORKS
-        mkdtable = mkdtables[4]
+        facade_area_tot = extract_value(trs,1)                   #1
+        facade_area_sht = extract_value(trs,3)                   #2
+        facade_area_unsht = extract_value(trs,5)                 #3
+        facade_area_panel = extract_value(trs,7)                 #4
+        facade_area_plit = extract_value(trs,9)                  #5
+        facade_area_side = extract_value(trs,11)                  #6
+        facade_area_wood = extract_value(trs,13)                  #7
+        facadewarm_area_sht = extract_value(trs,15)               #8
+        facadewarm_area_plit = extract_value(trs,17)              #9
+        facadewarm_area_side = extract_value(trs,19)              #10
+        facade_area_otmost = extract_value(trs,21)                #11
+        facade_garea_glassw = extract_value(trs,23)               #12
+        facade_garea_glassp = extract_value(trs,25)               #13
+        facade_iarea_glassw = extract_value(trs,27)               #14
+        facade_iarea_glassp = extract_value(trs,29)               #15
+        facade_area_door_met = extract_value(trs,31)              #16
+        facade_area_door_oth = extract_value(trs,33)              #17
+        facade_capfix_year = extract_value(trs,35)                #18
+
+        ###Roof
+        div2 = divs[2]
+        trs = div2.findAll("tr")
+
+        roof_area_tot = extract_value(trs,1)                     #19
+        roof_area_shif = extract_value(trs,3)                    #20
+        roof_area_met = extract_value(trs,5)                     #21
+        roof_area_oth = extract_value(trs,7)                     #22
+        roof_area_flat = extract_value(trs,9)                    #23
+        roof_capfix_year = extract_value(trs,11)                  #24
+        
+        ###Basement
+        div3 = divs[3]
+        trs = div3.findAll("tr")
+
+        base_descr = extract_value(trs,1)                        #25
+        base_area = extract_value(trs,3)                         #26
+        base_capfix_year = extract_value(trs,5)                  #27
+
+        ###Public areas
+        div4 = divs[4]
+        trs = div4.findAll("tr")
+
+        publ_area = extract_value(trs,1)                         #28
+        publ_capfix_year = extract_value(trs,3)                  #29
+
+        ###Trash
+        div5 = divs[5]
+        trs = div5.findAll("tr")
+
+        trash_num = extract_value(trs,1)                         #30
+        trash_capfix_year = extract_value(trs,3)                 #31
+
+        ##UTILITIES
         
         ###heating
         
@@ -254,14 +276,14 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
                                           ADDRESS=address.encode("utf-8"),
                                           AREA=area.encode("utf-8"),
-                                          AREA_LIVE=area_live.encode("utf-8"),
-                                          AREA_NONLIVE=area_nonlive.encode("utf-8"),
-                                          AREA_GENERAL=area_general.encode("utf-8"),
                                           CAD_NO=cad_no.encode("utf-8"),
                                           YEAR=year.encode("utf-8"),
                                           STATUS=status.encode("utf-8"),
                                           MGMT_COMPANY=mgmt_company.encode("utf-8"),
                                           MGMT_COMPANY_LINK=mgmt_company_link.encode("utf-8"),
+                                          LASTUPDATE=lastupdate.encode("utf-8"),
+                                          SERVICEDATE_START=servicedate_start.encode("utf-8"),
+                                          SERVICEDATE_END=servicedate_end.encode("utf-8"),
                                           SERIE=serie.encode("utf-8"),
                                           DESCRIPT=descript.encode("utf-8"),
                                           HOUSE_NAME=house_name.encode("utf-8"),
@@ -340,12 +362,15 @@ def get_lvl1_ids(link):
     res = urllib2.urlopen(link)
     soup = BeautifulSoup(''.join(res.read()))
     
-    locations = soup.findAll("td",{ "class" : "location" })
+    trs = soup.findAll("tr",{ "class" : "left" })
+    
     lvl1_ids = {}
-    for loc in locations:
-        name = loc.find("a").text.strip()
-        id = loc.find("a")['id'].replace("element_","")
-        lvl1_ids[name] = id
+    for tr in trs:
+        loc = tr.findAll("td")[1]
+        if loc.find("a"):
+            name_loc = loc.find("a").text.strip()
+            id_loc = loc.find("a")['href'].replace("?tid=","")
+            lvl1_ids[name_loc] = id_loc
     
     return lvl1_ids
 
@@ -353,13 +378,16 @@ def get_lvl2_ids(link):
     res = urllib2.urlopen(link)
     soup = BeautifulSoup(''.join(res.read()))
     
-    locations = soup.findAll("td",{ "class" : "location" })
+    trs = soup.findAll("tr",{ "class" : "left" })
+    
     lvl2_ids = {}
-    for loc in locations:
+    for tr in trs:
+        loc = tr.findAll("td")[1]
         if loc.find("a"):
-            name = loc.find("a").text.strip()
-            id = loc.find("a")['id'].replace("element_","")
-            lvl2_ids[name] = id
+            name_loc = loc.find("a").text.strip()
+            if loc.find("a").has_attr('href'):
+                id_loc = loc.find("a")['href'].replace("?tid=","")
+                lvl2_ids[name_loc] = id_loc
     
     return lvl2_ids
 
@@ -368,10 +396,12 @@ def get_house_list(link):
     soup = BeautifulSoup(''.join(res.read()))
     
     houses_ids = []
-    houses = soup.findAll("td",{"class":"name"})
-    for house in houses:
-        house_id = house.find("a")['href'].split("/")[3]
-        houses_ids.append(house_id)
+    tds = soup.findAll("td")
+    for td in tds:
+        if td.find("a") is not None:
+            if td.find("a").has_attr("href") and 'myhouse' in td.find("a")['href']:
+                house_id = td.find("a")['href'].split("/")[3]
+                houses_ids.append(house_id)
     
     return houses_ids
     
@@ -385,7 +415,7 @@ if __name__ == '__main__':
     
     #init csv for housedata
     f_housedata = open("data/housedata.csv","wb")
-    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","AREA_LIVE","AREA_NONLIVE","AREA_GENERAL","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","CONSTR_FEAT","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","FACADE_AREA_TOT","FACADE_AREA_SHT","FACADE_AREA_UNSHT","FACADE_AREA_PANEL","FACADE_AREA_PLIT","FACADE_AREA_SIDE","FACADE_AREA_WOOD","FACADEWARM_AREA_SHT","FACADEWARM_AREA_PLIT","FACADEWARM_AREA_SIDE","FACADE_AREA_OTMOST","FACADE_GAREA_GLASSW","FACADE_GAREA_GLASSP","FACADE_IAREA_GLASSW","FACADE_IAREA_GLASSP","FACADE_AREA_DOOR_MET","FACADE_AREA_DOOR_OTH","FACADE_CAPFIX_YEAR","ROOF_AREA_TOT","ROOF_AREA_SHIF","ROOF_AREA_MET","ROOF_AREA_OTH","ROOF_AREA_FLAT","ROOF_CAPFIX_YEAR","BASE_DESCR","BASE_AREA","BASE_CAPFIX_YEAR","PUBL_AREA","PUBL_CAPFIX_YEAR","TRASH_NUM","TRASH_CAPFIX_YEAR","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK","HOUSE_LINK")
+    fieldnames_data = ("HOUSE_ID","ADDRESS","AREA","CAD_NO","YEAR","STATUS","MGMT_COMPANY","MGMT_COMPANY_LINK","LASTUPDATE","SERVICEDATE_START","SERVICEDATE_END","SERIE","DESCRIPT","HOUSE_NAME","HOUSE_TYPE","YEAR2","WALL_MAT","PEREKR_TYPE","LEVELS","DOORS","ELEVATORS","AREA2","AREA_LIVE_TOTAL","AREA_LIVE_PRIV","AREA_LIVE_MUNIC","AREA_LIVE_STATE","AREA_NONLIVE2","AREA_UCH","AREA_NEAR","NO_INVENTORY","CAD_NO2","APTS","PEOPLE","ACCOUNTS","CONSTR_FEAT","HEAT_FACT","HEAT_NORM","ENERGY_CLASS","ENERGY_AUDIT_DATE","PRIVAT_DATE","WEAR_TOT","WEAR_FUNDAMENT","WEAR_WALLS","WEAR_PEREKR","STATE","FACADE_AREA_TOT","FACADE_AREA_SHT","FACADE_AREA_UNSHT","FACADE_AREA_PANEL","FACADE_AREA_PLIT","FACADE_AREA_SIDE","FACADE_AREA_WOOD","FACADEWARM_AREA_SHT","FACADEWARM_AREA_PLIT","FACADEWARM_AREA_SIDE","FACADE_AREA_OTMOST","FACADE_GAREA_GLASSW","FACADE_GAREA_GLASSP","FACADE_IAREA_GLASSW","FACADE_IAREA_GLASSP","FACADE_AREA_DOOR_MET","FACADE_AREA_DOOR_OTH","FACADE_CAPFIX_YEAR","ROOF_AREA_TOT","ROOF_AREA_SHIF","ROOF_AREA_MET","ROOF_AREA_OTH","ROOF_AREA_FLAT","ROOF_CAPFIX_YEAR","BASE_DESCR","BASE_AREA","BASE_CAPFIX_YEAR","PUBL_AREA","PUBL_CAPFIX_YEAR","TRASH_NUM","TRASH_CAPFIX_YEAR","LVL1_NAME","LVL1_ID","LVL1_LINK","LVL2_NAME","LVL2_ID","LVL2_LINK","HOUSE_LINK")
     fields_str = ",".join(fieldnames_data)
     f_housedata.write(fields_str+'\n')
     f_housedata.close()
