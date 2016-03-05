@@ -270,6 +270,7 @@ def get_lvl1_ids(link):
     
     trs = soup.findAll('tr',{ 'class' : 'left' })
     
+    
     lvl1_ids = {}
     for tr in trs:
         loc = tr.findAll('td')[1]
@@ -278,6 +279,14 @@ def get_lvl1_ids(link):
             id_loc = loc.find('a')['href'].replace('?tid=','').split('&')[0]
             lvl1_ids[name_loc] = id_loc
     
+    
+    
+    
+    #small city with 1 level
+    if len(lvl1_ids)==0:
+        tid=link.replace('tid=','!').split('!')[1]
+        lvl1_ids[tid]=tid
+
     return lvl1_ids
 
 def get_lvl2_ids(link):
@@ -294,6 +303,10 @@ def get_lvl2_ids(link):
             if loc.find('a').has_attr('href'):
                 id_loc = loc.find('a')['href'].replace('?tid=','').split('&')[0]
                 lvl2_ids[name_loc] = id_loc
+    
+    if len(lvl2_ids)==0:
+        tid=link.replace('tid=','!').split('!')[1]
+        lvl2_ids[tid]=tid
     
     return lvl2_ids
 
