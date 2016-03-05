@@ -7,8 +7,8 @@ reformagkh
 В новой версии граббера пока поддерживаются не все переменные.
 
 ##Таблица с результатами (фрагмент)
-![Example1](img/table.png)
+![Example1](/img/table.png)
 
-##Таблица с результатами (фрагмент)
-Веб-карта с результатами: http://demo.nextgis.ru/ngw/resource/243/display
-![Example2](img/webmap.png)
+##Веб-карта с результатами
+Демо: http://demo.nextgis.ru/ngw/resource/243/display
+![Example2](/img/map.png)

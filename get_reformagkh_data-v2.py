@@ -3,7 +3,7 @@
 
 #******************************************************************************
 #
-# get_reformagkh_data.py
+# get_reformagkh_data-v2.py
 # ---------------------------------------------------------
 # Grab reformagkh.ru data on buildings, put it in the CSV table.
 # More: https://github.com/nextgis/reformagkh
@@ -15,7 +15,7 @@
 #           id           Region ID
 #           output_name  Where to store the results (path to CSV file)
 # Examples:
-#      python get_reformagkh_data.py 2280999 data/housedata2.csv
+#      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv
 #
 # Copyright (C) 2014-2016 Maxim Dubinin (sim@gis-lab.info)
 # Created: 18.03.2014
@@ -98,8 +98,10 @@ def urlopen_house(link,id):
                 time.sleep(3)
             else:
                 res = r
+                f = open("html/" + id + ".html","wb")
+                f.write(res)
+                f.close()
                 break
-    
     return res
 
 def extract_value(trs,num):
