@@ -9,11 +9,12 @@
 # More: https://github.com/nextgis/reformagkh
 #
 # Usage: 
-#      usage: get_reformagkh_data.py [-h] id output_name
+#      usage: get_reformagkh_data-v2.py [-h] [-o ORIGINALS_FOLDER] id output_name
 #      where:
 #           -h           show this help message and exit
 #           id           Region ID
 #           output_name  Where to store the results (path to CSV file)
+#            -o ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv
 #
@@ -49,6 +50,7 @@ import re
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
 parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
+parser.add_argument('-o','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
 
 
@@ -98,9 +100,10 @@ def urlopen_house(link,id):
                 time.sleep(3)
             else:
                 res = r
-                f = open("html/" + id + ".html","wb")
-                f.write(res)
-                f.close()
+                if args.originals_folder:
+                    f = open(args.originals_folder + id + ".html","wb")
+                    f.write(res)
+                    f.close()
                 break
     return res
 
