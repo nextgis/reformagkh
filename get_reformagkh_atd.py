@@ -370,4 +370,3 @@ if __name__ == '__main__':
                                     LVL3_LINK=lvl3_link))
 
     f_atd.close()
-    f_errors.close()
