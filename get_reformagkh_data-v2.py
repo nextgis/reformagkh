@@ -317,7 +317,7 @@ def get_lvl2_ids(link):
 
 def get_house_list(link):
     res = urllib2.urlopen(link)
-    soup = BeautifulSoup(''.join(res.read()))
+    soup = BeautifulSoup(''.join(res.read()),'html.parser')
     
     houses_ids = []
     tds = soup.findAll('td')
