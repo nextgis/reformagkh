@@ -101,6 +101,7 @@ def urlopen_house(link,id):
             else:
                 res = r
                 if args.originals_folder:
+                    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
                     f = open(args.originals_folder + id + ".html","wb")
                     f.write(res)
                     f.close()
@@ -132,7 +133,6 @@ def get_house_list(link):
                 houses_ids.append(house_id)
     
     return houses_ids
-    
 
 def get_data_links(id):
     f_atd = open('atd.csv','rb')
@@ -190,6 +190,11 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         divs = soup.findAll('div', { 'class' : 'numbered' })
         div0 = divs[0]
         trs = div0.findAll('tr')
+        lentrs = len(trs)
+        if lentrs > 58: 
+            trs_offset = lentrs - 58
+        else:
+            trs_offset = 0
         
         year = extract_value(trs[3])                            #5 Год ввода в эксплуатацию
         serie = extract_value(trs[5])                            #1 Серия
@@ -209,12 +214,13 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         area_gen = extract_value(trs[38]).replace(' ','')        #11 Общая площадь помещений, входящих в состав общего имущества
         area_land = extract_value(trs[41]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
         area_park = extract_value(trs[43]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
-        #cadno = trs[44].findAll('td')[1].text                    #12 кад номер
-        energy_class = extract_value(trs[48])                    #13 Класс энергоэффективности
-        blag_playground = extract_value(trs[51])                 #14 Элементы благоустройства
-        blag_sport = extract_value(trs[53])                      #14 Элементы благоустройства
-        blag_other = extract_value(trs[55])                      #14 Элементы благоустройства
-        other = extract_value(trs[57])                           #14 Элементы благоустройства
+        cadno = trs[44].findAll('td')[1].text                    #12 кад номер
+        
+        energy_class = extract_value(trs[48 + trs_offset])                    #13 Класс энергоэффективности
+        blag_playground = extract_value(trs[51 + trs_offset])                 #14 Элементы благоустройства
+        blag_sport = extract_value(trs[53 + trs_offset])                      #14 Элементы благоустройства
+        blag_other = extract_value(trs[55 + trs_offset])                      #14 Элементы благоустройства
+        other = extract_value(trs[57 + trs_offset])                           #14 Элементы благоустройства
 
         
         #write to output
