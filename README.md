@@ -9,7 +9,13 @@ reformagkh
 
 1. Находим идентификатор региона, который нужно скачать. Может быть любой из уровней, скачиваться будут в т.ч. все подуровни.
 2. Убеждаемся, что рядом со скриптом присутствует файл atd.csv (его можно либо скачать тут же, либо сделать самому запустив другой скрипт `get_reformagkh_atd.py`)
-3. Запускаем скрипт. 
+3. Запускаем скрипт.
+
+ND: Для работы скрипта, кроме Python 2.7.x нужен модуль ![progressbar](https://pypi.python.org/pypi/progressbar)
+
+```bash
+pip install progressbar
+```
 
 ```bash
 python get_reformagkh_data-v2.py 2280999 data/housedata.csv -o html

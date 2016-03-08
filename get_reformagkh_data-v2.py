@@ -52,7 +52,7 @@ parser.add_argument('id', help='Region ID')
 parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
 parser.add_argument('-o','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
-
+if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
 
 def console_out(text):
     #write httplib error messages to console
