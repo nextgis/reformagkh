@@ -16,7 +16,7 @@
 #           output_name  Where to store the results (path to CSV file)
 #            -o ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
-#      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv
+#      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
 #
 # Copyright (C) 2014-2016 Maxim Dubinin (sim@gis-lab.info)
 # Created: 18.03.2014
@@ -183,7 +183,10 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         servicedate_end = '' #trs[5].findAll('td')[1].text.strip()           #gen4 Плановая дата прекращения обслуживания дома
 
         #TODO extract lat/long coords from script
-        lat,lon = soup.findAll('script')[11].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
+        if 'center' in soup.findAll('script')[11]:
+            lat,lon = soup.findAll('script')[11].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
+        else:
+            lat,lon = soup.findAll('script')[12].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
 
         #PASSPORT
         ##GENERAL
