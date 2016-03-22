@@ -31,6 +31,12 @@ python get_reformagkh_data-v2.py 2280999 data/housedata.csv -o html
 Демо: http://demo.nextgis.ru/ngw/resource/243/display
 ![Example2](/img/map.png)
 
+License
+-------------
+Code - GNU GPL v2 or any later version
+Data - unknown, possibly Public Domain
+
+
 ##Caveats
 
 * Пока поддерживаются не все параметры представленные на основном сайте
