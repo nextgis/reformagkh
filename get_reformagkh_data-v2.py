@@ -52,7 +52,8 @@ parser.add_argument('id', help='Region ID')
 parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
 parser.add_argument('-o','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
-if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
+if args.originals_folder:
+    if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
 
 def console_out(text):
     #write httplib error messages to console
@@ -122,7 +123,8 @@ def extract_subvalue(tr,num):
 
 def get_house_list(link):
     res = urllib2.urlopen(link)
-    soup = BeautifulSoup(''.join(res.read()), "html.parser")
+    resread = res.read()
+    soup = BeautifulSoup(''.join(resread), 'html.parser')
     
     houses_ids = []
     tds = soup.findAll('td')
@@ -154,7 +156,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         
         #print(house_id)
 
-        address = soup.find('span', { 'class' : 'loc_name float-left width650 word-wrap-break-word' }).text.strip()
+        address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
         
         #GENERAL
         div = soup.find('div', { 'class' : 'fr' })
