@@ -31,6 +31,19 @@ python get_reformagkh_data-v2.py 2280999 data/housedata.csv -o html
 Демо: http://demo.nextgis.ru/ngw/resource/243/display
 ![Example2](/img/map.png)
 
-##Caveats
+##TODO
 
 * Пока поддерживаются не все параметры представленные на основном сайте
+
+
+License
+-------------
+* Code - GNU GPL v2 or any later version
+* Data - unknown, possibly Public Domain
+
+Commercial support
+----------
+Need to fix a bug or add a feature to Reformagkh parsers? We provide custom development and support for this software. [Contact us](http://nextgis.ru/en/contact/) to discuss options!
+
+[![http://nextgis.com](http://nextgis.ru/img/nextgis.png)](http://nextgis.com)
+
