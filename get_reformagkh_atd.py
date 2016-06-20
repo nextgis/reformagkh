@@ -9,14 +9,13 @@
 # More: https://github.com/nextgis/reformagkh
 #
 # Usage: 
-#      usage: get_reformagkh_data-v2.py [-h] [-o ORIGINALS_FOLDER] id output_name
+#      usage: get_reformagkh_atd.py [-h] [-o ORIGINALS_FOLDER] output_name
 #      where:
 #           -h           show this help message and exit
-#           id           Region ID
 #           output_name  Where to store the results (path to CSV file)
 #            -o ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
-#      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv
+#      python get_reformagkh_atd.py -o data_orig data/atd.csv
 #
 # Copyright (C) 2014-2016 Maxim Dubinin (sim@gis-lab.info)
 # Created: 6.04.2016
