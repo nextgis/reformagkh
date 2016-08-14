@@ -13,8 +13,9 @@
 #      where:
 #           -h           show this help message and exit
 #           id           Region ID
+#           -o,overwrite Overwite all, will write over previously downloaded files
 #           output_name  Where to store the results (path to CSV file)
-#            -o ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
+#           -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
 #
@@ -47,11 +48,15 @@ import socket
 import argparse
 from collections import namedtuple
 from time import sleep
+import requesocks
+from stem import Signal
+from stem.control import Controller
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
 parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
-parser.add_argument('-o','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
+parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all, will write over previously downloaded files.')
+parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
 if args.originals_folder:
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
@@ -63,53 +68,38 @@ def console_out(text):
     
     f_errors.write(timestamp + ': '+ text)
 
-def urlopen_house(link,id):
-    #fetch html data on a house
+def get_content(link):
     numtries = 5
     timeoutvalue = 40
     
     for i in range(1,numtries+1):
-        i = str(i)
         try:
-            u = urllib2.urlopen(link, timeout = timeoutvalue)
-        except BadStatusLine:
-            console_out('BadStatusLine for ID:' + id + '.' + ' Attempt: ' + i)
-            res = False
-            time.sleep(3)
-        except urllib2.URLError, e:
-            if hasattr(e, 'reason'):
-                console_out('We failed to reach a server for ID:' + id + ' Reason: ' + str(e.reason) + '.' + ' Attempt: ' + i)
-            elif hasattr(e, 'code'):
-                console_out('The server couldn\'t fulfill the request for ID: ' + id + ' Error code: ' + str(e.code) + '.' + ' Attempt: ' + i)
-            res = False
-            time.sleep(3)
-        except socket.timeout, e:
-            console_out('Connection timed out on urlopen() for ID: ' + id + '.' + ' Attempt: ' + i)
-            res = False
+            res = session.get(link).text
+        except:
             time.sleep(3)
         else:
-            try:
-                r = u.read()
-            except socket.timeout, e:
-                console_out('Connection timed out on socket.read() for ID: ' + id + '.' + ' Attempt: ' + i)
-                res = False
-                u.close()
-                time.sleep(3)
-            except IncompleteRead:
-                console_out('Incomplete read on socket.read() for ID: ' + id + '.' + ' Attempt: ' + i)
-                res = False
-                u.close()
-                time.sleep(3)
-            else:
-                res = r
-                if args.originals_folder:
-                    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
-                    f = open(args.originals_folder + id + ".html","wb")
-                    f.write(res)
-                    f.close()
-                break
+            break
+        
+    return res
+    
+def urlopen_house(link,id):
+    #fetch html data on a house
+    
+    for i in range(1,numtries+1):
+        i = str(i)
+        res = get_content(link)
+        if args.originals_folder:
+            if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
+            f = open(args.originals_folder + id + ".html","wb")
+            f.write(res.encode('utf-8'))
+            f.close()
     return res
 
+def change_proxy():
+    with Controller.from_port(port = 9151) as controller:
+            controller.authenticate(password="password")
+            controller.signal(Signal.NEWNYM)
+    
 def extract_value(tr):
     #extract value for general attributes
     res = tr.findAll('td')[1].text.strip()
@@ -122,18 +112,48 @@ def extract_subvalue(tr,num):
       
     return res
 
+def check_size(link):
+
+    res = get_content(link)
+    soup = BeautifulSoup(''.join(res), 'html.parser')
+    captcha = check_captcha(soup)
+    
+    while captcha == True:
+        res = get_content(link)
+        soup = BeautifulSoup(''.join(res), 'html.parser')
+        captcha = check_captcha(soup)
+        change_proxy()
+    
+    divs = soup.findAll('div', { 'class' : 'clearfix' })
+    table = divs[1].find('table', { 'class' : 'col_list' })
+    size = table.findAll('td')[3].text.replace(u' ед.','').replace(' ','')
+
+    return size
+
 def get_house_list(link):
-    res = urllib2.urlopen(link)
-    resread = res.read()
-    soup = BeautifulSoup(''.join(resread), 'html.parser')
+    size = check_size(link)
+    if size == 0: size = check_size(link)
+    
+    pages = (int(size) / 10000) + 1
     
     houses_ids = []
-    tds = soup.findAll('td')
-    for td in tds:
-        if td.find('a') is not None:
-            if td.find('a').has_attr('href') and 'myhouse' in td.find('a')['href']:
-                house_id = td.find('a')['href'].split('/')[4]
-                houses_ids.append(house_id)
+    for page in range(1,pages+1):
+        res = get_content(link + '&page=' + str(page) + '&limit=10000')
+        soup = BeautifulSoup(''.join(res), 'html.parser')
+        captcha = check_captcha(soup)
+    
+        while captcha == True:
+            res = get_content(link + '&page=' + str(page) + '&limit=10000')
+            soup = BeautifulSoup(''.join(res), 'html.parser')
+            captcha = check_captcha(soup)
+            change_proxy()
+
+        tds = soup.findAll('td')
+        for td in tds:
+            if td.find('a') is not None:
+                if td.find('a').has_attr('href') and 'myhouse' in td.find('a')['href']:
+                    house_id = td.find('a')['href'].split('/')[4]
+                    houses_ids.append(house_id)
     
     return houses_ids
 
@@ -149,22 +169,30 @@ def get_data_links(id):
     return regs
 
 def check_captcha(soup):
-    captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})
-    if captcha != None:
-        sleep(3000)
-    
-    return True
+    captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})    
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup): 
+        return True
+    else:
+        return False
     
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     #process house data to get main attributes
-    res = urlopen_house(link + 'view/' + house_id,house_id)
+    
+    if not os.path.isfile(args.originals_folder + '/' + house_id + ".html"):
+        try:
+            res = urlopen_house(link + 'view/' + house_id,house_id)
+        except:
+            f_errors.write(link + 'view/' + house_id + '\n')
+            res = False
+    else:
+        res = open(args.originals_folder + '/' + house_id + ".html",'rb').read()
     
     if res != False:
         soup = BeautifulSoup(''.join(res),'html.parser')
+        f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
         
-        captcha = check_captcha(soup)
-        
-        if captcha == False:
+        if len(soup) > 0 and 'Time-out' not in soup.text and '502 Bad Gateway' not in soup.text: #u'Ошибка' not in soup.text
+
             address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
             
             #GENERAL
@@ -270,11 +298,11 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                                               BLAG_OTHER=blag_other.encode('utf-8'),
                                               OTHER=other.encode('utf-8')))
             return True
-             
-        else:
-              return False
 
 if __name__ == '__main__':
+    session = requesocks.session()
+    session.proxies = {'http':  'socks5://127.0.0.1:9150',
+                       'https': 'socks5://127.0.0.1:9150'}
     tid = args.id #2280999
     lvl1_link = 'http://www.reformagkh.ru/myhouse?tid=' + tid #+ '&sort=alphabet&item=mkd'
     house_link = 'http://www.reformagkh.ru/myhouse/profile/'
@@ -285,6 +313,7 @@ if __name__ == '__main__':
 
     #init errors.log
     f_errors = open('errors.txt','wb')
+    f_ids = open('ids.txt','wb')
     
     #init csv for housedata
     f_housedata_name = args.output_name   #data/housedata.csv
@@ -305,9 +334,9 @@ if __name__ == '__main__':
                 print(reg[0].decode('utf8') + ', ' + reg[1].decode('utf8') + ', ' + reg[2].decode('utf8'))
                 #get list of houses
                 if reg[5] == '': 
-                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4] + '&limit=100000')
+                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
                 else:
-                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5] + '&limit=100000')
+                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
                 
                 pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
                 pbar.maxval = len(houses_ids)
@@ -317,9 +346,11 @@ if __name__ == '__main__':
                     i = i+1
                     res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
                     if res == False:
+                        change_proxy()
                         res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
                     pbar.update(pbar.currval+1)
                 pbar.finish()
 
     f_housedata.close()
     f_errors.close()
+    f_ids.close()
