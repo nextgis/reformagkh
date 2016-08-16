@@ -90,14 +90,13 @@ def get_content(link):
 def urlopen_house(link,id):
     #fetch html data on a house
     
-    for i in range(1,numtries+1):
-        i = str(i)
-        res = get_content(link)
-        if args.originals_folder:
-            if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
-            f = open(args.originals_folder + id + ".html","wb")
-            f.write(res.encode('utf-8'))
-            f.close()
+    res = get_content(link)
+    if args.originals_folder:
+        if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
+        f = open(args.originals_folder + id + ".html","wb")
+        f.write(res.encode('utf-8'))
+        f.close()
+
     return res
 
 def change_proxy():
