@@ -77,8 +77,13 @@ def get_content(link):
             res = session.get(link).text
         except:
             time.sleep(3)
+            res = ''
         else:
             break
+    
+    if res == '':
+        print('Session time out')
+        sys.exit() 
         
     return res
     
@@ -303,6 +308,12 @@ if __name__ == '__main__':
     session = requesocks.session()
     session.proxies = {'http':  'socks5://127.0.0.1:9150',
                        'https': 'socks5://127.0.0.1:9150'}
+    try:
+        session.get('http://google.com').text
+    except:
+        print('Tor isn\'t running or not configured properly')
+        sys.exit(1)
+    
     tid = args.id #2280999
     lvl1_link = 'http://www.reformagkh.ru/myhouse?tid=' + tid #+ '&sort=alphabet&item=mkd'
     house_link = 'http://www.reformagkh.ru/myhouse/profile/'
