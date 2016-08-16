@@ -59,8 +59,9 @@ parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all,
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
 if args.originals_folder:
+    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
-
+    
 def console_out(text):
     #write httplib error messages to console
     time_current = datetime.datetime.now()
@@ -92,7 +93,6 @@ def urlopen_house(link,id):
     
     res = get_content(link)
     if args.originals_folder:
-        if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
         f = open(args.originals_folder + id + ".html","wb")
         f.write(res.encode('utf-8'))
         f.close()
@@ -182,14 +182,21 @@ def check_captcha(soup):
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     #process house data to get main attributes
     
-    if not os.path.isfile(args.originals_folder + '/' + house_id + ".html"):
-        try:
-            res = urlopen_house(link + 'view/' + house_id,house_id)
-        except:
-            f_errors.write(link + 'view/' + house_id + '\n')
-            res = False
+    if args.originals_folder:
+        if not os.path.isfile(args.originals_folder + '/' + house_id + ".html"):
+            try:
+                res = urlopen_house(link + 'view/' + house_id,house_id)
+            except:
+                f_errors.write(link + 'view/' + house_id + '\n')
+                res = False
+        else:
+            res = open(args.originals_folder + '/' + house_id + ".html",'rb').read()
     else:
-        res = open(args.originals_folder + '/' + house_id + ".html",'rb').read()
+       try:
+           res = urlopen_house(link + 'view/' + house_id,house_id)
+       except:
+           f_errors.write(link + 'view/' + house_id + '\n')
+           res = False
     
     if res != False:
         soup = BeautifulSoup(''.join(res),'html.parser')
