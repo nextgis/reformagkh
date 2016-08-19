@@ -58,8 +58,9 @@ parser.add_argument('output_name', help='Where to store the results (path to CSV
 parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all, will write over previously downloaded files.')
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
+dirsep = '/' if not os.name == 'nt' else '\\' 
 if args.originals_folder:
-    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
+    if not args.originals_folder.endswith(dirsep): args.originals_folder = args.originals_folder + dirsep
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
     
 def console_out(text):
