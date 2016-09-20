@@ -20,7 +20,7 @@ pip install progressbar
 ```
 
 ```bash
-python get_reformagkh_data-v3.py 2280999 data/housedata.csv -o html
+python get_reformagkh_data-v3.py 2280999 data/housedata.csv -of html
 ```
 
 ![Example3](/img/running.png)
