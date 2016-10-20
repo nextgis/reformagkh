@@ -8,7 +8,7 @@ reformagkh
 
 ##Как запускать
 
-1. Находим идентификатор региона, который нужно скачать. Может быть любой из уровней, скачиваться будут в т.ч. все подуровни.
+1. Находим идентификатор региона, который нужно скачать. Это может быть любой из уровней, скачиваться будут в т.ч. все подуровни. Идентификатор можно взять или в ![atd.csv](https://github.com/nextgis/reformagkh/blob/master/atd.csv) или непосредственно из ссылки (tid) вида `https://www.reformagkh.ru/myhouse?tid=2208192`.
 2. Убеждаемся, что рядом со скриптом присутствует файл atd.csv (его можно либо скачать тут же, либо сделать самому запустив другой скрипт `get_reformagkh_atd.py`)
 3. Выполняем шаги 1-4 [отсюда](http://answer-42.livejournal.com/136795.html) 
 4. Запускаем скрипт.
@@ -20,7 +20,7 @@ pip install progressbar
 ```
 
 ```bash
-python get_reformagkh_data-v3.py 2280999 data/housedata.csv -o html
+python get_reformagkh_data-v3.py 2280999 data/housedata.csv -of html
 ```
 
 ![Example3](/img/running.png)
