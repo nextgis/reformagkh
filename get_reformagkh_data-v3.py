@@ -80,18 +80,22 @@ def get_content(link):
     numtries = 5
     timeoutvalue = 40
 
-    for i in range(1,numtries+1):
-        try:
-            res = session.get(link).text
-        except:
-            time.sleep(3)
-            res = ''
-        else:
-            break
+    if args.no_tor:
+        live_url = urllib2.urlopen(link)
+        res = live_url.read()
+    else:
+        for i in range(1,numtries+1):
+            try:
+                res = session.get(link).text
+            except:
+                time.sleep(3)
+                res = ''
+            else:
+                break
 
-    if res == '':
-        print('Session time out')
-        sys.exit()
+        if res == '':
+            print('Session time out')
+            sys.exit()
 
     return res
 
@@ -354,7 +358,7 @@ if __name__ == '__main__':
 
     regs = get_data_links(args.id)
 
-    house_ids_fname = 'house_ids.pickle'
+    house_ids_fname = args.originals_folder + dirsep + 'house_ids.pickle'
 
     for reg in regs:
         if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
@@ -366,7 +370,7 @@ if __name__ == '__main__':
                     f_house_ids = open(house_ids_fname, 'rb')
                     house_ids = pickle.load(f_house_ids)
                     f_house_ids.close()
-                else
+                else:
                     print('retrieve house ids from the site')
                     if reg[5] == '':
                         houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
@@ -375,10 +379,14 @@ if __name__ == '__main__':
                     # save IDs in a file making a copy of an existing file
                     print('saving house_ids to ', house_ids_fname)
                     if os.path.isfile(house_ids_fname):
-                        shutil.copyfile(house_ids_fname, house_ids_fname + '.{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now))
-                    f_house_ids = open(house_ids_fname, 'wb)
-                    pickle.dump(house_ids, f_house_ids)
+                        bfile_name = house_ids_fname + '.{:%Y-%m-%dT%H.%M.%S}'.format(datetime.datetime.now())
+                        print('old building list backed up to ', bfile_name)
+                        shutil.copyfile(house_ids_fname, bfile_name)
+                    f_house_ids = open(house_ids_fname, 'wb')
+                    pickle.dump(houses_ids, f_house_ids)
                     f_house_ids.close()
+
+                #sys.exit(0)
 
                 pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
                 pbar.maxval = len(houses_ids)
