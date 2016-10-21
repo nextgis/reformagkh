@@ -51,6 +51,10 @@ from time import sleep
 import requesocks
 from stem import Signal
 from stem.control import Controller
+# module to serialize/desereliaze object on the disk
+import pickle
+import shutil
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
@@ -350,16 +354,31 @@ if __name__ == '__main__':
 
     regs = get_data_links(args.id)
 
+    house_ids_fname = 'house_ids.pickle'
+
     for reg in regs:
         if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
                 print(reg[0].decode('utf8') + ', ' + reg[1].decode('utf8') + ', ' + reg[2].decode('utf8'))
                 #get list of houses
-                # TODO: if cache_only load save ids
-                if reg[5] == '':
-                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
-                else:
-                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
-                # save the list of houses in a file, make a backup copy of the old file if it exists
+                if args.cache_only:
+                    # load saved ids
+                    print('Loading cached house_ids from ', house_ids_fname)
+                    f_house_ids = open(house_ids_fname, 'rb')
+                    house_ids = pickle.load(f_house_ids)
+                    f_house_ids.close()
+                else
+                    print('retrieve house ids from the site')
+                    if reg[5] == '':
+                        houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
+                    else:
+                        houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
+                    # save IDs in a file making a copy of an existing file
+                    print('saving house_ids to ', house_ids_fname)
+                    if os.path.isfile(house_ids_fname):
+                        shutil.copyfile(house_ids_fname, house_ids_fname + '.{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now))
+                    f_house_ids = open(house_ids_fname, 'wb)
+                    pickle.dump(house_ids, f_house_ids)
+                    f_house_ids.close()
 
                 pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
                 pbar.maxval = len(houses_ids)
