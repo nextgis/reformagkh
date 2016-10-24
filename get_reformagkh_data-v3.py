@@ -103,6 +103,7 @@ def urlopen_house(link,id):
     #fetch html data on a house
 
     res = get_content(link)
+    # TODO: another place to check what is returned
     if args.originals_folder:
         f = open(args.originals_folder + id + ".html","wb")
         f.write(res.encode('utf-8'))
@@ -158,6 +159,7 @@ def get_house_list(link):
         captcha = check_captcha(soup)
 
         while captcha == True:
+            # TODO: check for --no_tor
             res = get_content(link + '&page=' + str(page) + '&limit=10000')
             soup = BeautifulSoup(''.join(res), 'html.parser')
             captcha = check_captcha(soup)
@@ -210,6 +212,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
            res = False
 
     if res != False:
+        # TODO: place to check res content
         soup = BeautifulSoup(''.join(res),'html.parser')
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
 
@@ -381,7 +384,7 @@ if __name__ == '__main__':
                     if os.path.isfile(house_ids_fname):
                         bfile_name = house_ids_fname + '.{:%Y-%m-%dT%H.%M.%S}'.format(datetime.datetime.now())
                         print('old building list backed up to ', bfile_name)
-                        shutil.copyfile(house_ids_fname, bfile_name)
+                        shutil.move(house_ids_fname, bfile_name)
                     f_house_ids = open(house_ids_fname, 'wb')
                     pickle.dump(houses_ids, f_house_ids)
                     f_house_ids.close()
