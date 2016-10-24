@@ -51,7 +51,7 @@ from time import sleep
 import requesocks
 from stem import Signal
 from stem.control import Controller
-# module to serialize/desereliaze object on the disk
+# module to serialize/deserialize object on the disk
 import pickle
 import shutil
 import datetime
@@ -103,10 +103,9 @@ def urlopen_house(link,id):
     #fetch html data on a house
 
     res = get_content(link)
-    # TODO: another place to check what is returned
     if args.originals_folder:
         f = open(args.originals_folder + id + ".html","wb")
-        f.write(res.encode('utf-8'))
+        f.write(res)#.encode('utf-8'))  #writing in utf-8 causes exceptions.UnicodeDecodeError
         f.close()
 
     return res
@@ -159,7 +158,9 @@ def get_house_list(link):
         captcha = check_captcha(soup)
 
         while captcha == True:
-            # TODO: check for --no_tor
+            if args.no_tor:
+                print "Captcha received: the limit of connections was likely exceeded, quitting"
+                sys.exit(-1)
             res = get_content(link + '&page=' + str(page) + '&limit=10000')
             soup = BeautifulSoup(''.join(res), 'html.parser')
             captcha = check_captcha(soup)
@@ -200,6 +201,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
             try:
                 res = urlopen_house(link + 'view/' + house_id,house_id)
             except:
+                print "Error with " + link + 'view/' + house_id + ": ", sys.exc_info()[0]
                 f_errors.write(link + 'view/' + house_id + '\n')
                 res = False
         else:
@@ -212,7 +214,6 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
            res = False
 
     if res != False:
-        # TODO: place to check res content
         soup = BeautifulSoup(''.join(res),'html.parser')
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
 
@@ -371,7 +372,7 @@ if __name__ == '__main__':
                     # load saved ids
                     print('Loading cached house_ids from ', house_ids_fname)
                     f_house_ids = open(house_ids_fname, 'rb')
-                    house_ids = pickle.load(f_house_ids)
+                    houses_ids = pickle.load(f_house_ids)
                     f_house_ids.close()
                 else:
                     print('retrieve house ids from the site')
