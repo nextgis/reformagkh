@@ -275,9 +275,30 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
             blag_other = extract_value(trs[55 + trs_offset])                      #14 Элементы благоустройства
             other = extract_value(trs[57 + trs_offset])                           #14 Элементы благоустройства
 
-            
+            ##meter devices
+            result = {}
+            table = soup.findAll('table', {'class': 'overhaul-services-table'})[-1]
+            for section in table.findAll('tbody'):
+                rows = section.findAll('tr')
+                cells = rows[0].findAll('td')
+                search = (
+                    (u'Холодное водоснабжение', u'COLD_WATER'),
+                    (u'Горячее водоснабжение', u'HOT_WATER'))
+                for q in search:
+                    if cells[0].text == q[0]:
+                        value = cells[1].text
+                        if value == u'Установлен':
+                            spans = section.findAll('tr', recursive=False)[-1].findAll('span')
+                            value = ', '.join([value] + list(filter(
+                                lambda a: a != u'Не заполнено',
+                                map(
+                                    lambda a: getattr(a, 'text'),
+                                    (spans[1], cells[2], cells[3], spans[-1])))))
+                        result[q[-1]] = value.strip().encode('utf-8')
+
             #write to output
-            csvwriter_housedata.writerow(dict(LAT=lat,
+            csvwriter_housedata.writerow(dict(result,
+                                              LAT=lat,
                                               LON=lon,
                                               HOUSE_ID=house_id,
                                               ADDRESS=address.encode('utf-8'),
@@ -335,7 +356,7 @@ if __name__ == '__main__':
     #init csv for housedata
     f_housedata_name = args.output_name   #data/housedata.csv
     f_housedata = open(f_housedata_name,'wb')
-    fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER')
+    fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER','COLD_WATER','HOT_WATER')
     fields_str = ','.join(fieldnames_data)
     f_housedata.write(fields_str+'\n')
     f_housedata.close()
