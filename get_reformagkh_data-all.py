@@ -8,7 +8,7 @@
 # Grab reformagkh.ru data on buildings, put it in the CSV table.
 # More: https://github.com/nextgis/reformagkh
 #
-# Usage: 
+# Usage:
 #      usage: get_reformagkh_data-v2.py [-h] [-o ORIGINALS_FOLDER] id output_name
 #      where:
 #           -h           show this help message and exit
@@ -16,8 +16,14 @@
 #           -o,overwrite Overwite all, will write over previously downloaded files
 #           output_name  Where to store the results (path to CSV file)
 #           -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
+#           --cache_only only parse cache, do not touch the web site
+#           --no_tor do not use tor, connect to the site directly
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
+#      python get_reformagkh_data-all.py 2291922 housedata.csv -of omsk --no_tor --cache_only
+#
+# to use with Anaconda do once after installing python 2.7 as py27:
+#     source activate py27 
 #
 # Copyright (C) 2014-2016 Maxim Dubinin (sim@gis-lab.info)
 # Created: 18.03.2014
@@ -51,51 +57,61 @@ from time import sleep
 import requesocks
 from stem import Signal
 from stem.control import Controller
+# module to serialize/deserialize object on the disk
+import pickle
+import shutil
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
 parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
 parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all, will write over previously downloaded files.')
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
+parser.add_argument('--no_tor', help='Do not use tor connection', action="store_true")
+parser.add_argument('--cache_only', help='Do not connect to the web site, use only cached entries', action="store_true")
 args = parser.parse_args()
-dirsep = '/' if not os.name == 'nt' else '\\' 
+dirsep = '/' if not os.name == 'nt' else '\\'
 if args.originals_folder:
     if not args.originals_folder.endswith(dirsep): args.originals_folder = args.originals_folder + dirsep
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
-    
+
 def console_out(text):
     #write httplib error messages to console
     time_current = datetime.datetime.now()
     timestamp = time_current.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     f_errors.write(timestamp + ': '+ text)
 
 def get_content(link):
     numtries = 5
     timeoutvalue = 40
-    
-    for i in range(1,numtries+1):
-        try:
-            res = session.get(link).text
-        except:
-            time.sleep(3)
-            res = ''
-        else:
-            break
-    
-    if res == '':
-        print('Session time out')
-        sys.exit() 
-        
+
+    if args.no_tor:
+        live_url = urllib2.urlopen(link)
+        res = live_url.read()
+    else:
+        for i in range(1,numtries+1):
+            try:
+                res = session.get(link).text
+            except:
+                time.sleep(3)
+                res = ''
+            else:
+                break
+
+        if res == '':
+            print('Session time out')
+            sys.exit()
+
     return res
-    
+
 def urlopen_house(link,id):
     #fetch html data on a house
-    
+
     res = get_content(link)
     if args.originals_folder:
         f = open(args.originals_folder + id + ".html","wb")
-        f.write(res.encode('utf-8'))
+        f.write(res)#.encode('utf-8'))  #writing in utf-8 causes exceptions.UnicodeDecodeError
         f.close()
 
     return res
@@ -104,17 +120,17 @@ def change_proxy():
     with Controller.from_port(port = 9151) as controller:
             controller.authenticate(password="password")
             controller.signal(Signal.NEWNYM)
-    
+
 def extract_value(tr):
     #extract value for general attributes
     res = tr.findAll('td')[1].text.strip()
-      
+
     return res
 
 def extract_subvalue(tr,num):
     #extract value for general attributes
     res = tr.findAll('tr')[num].text.strip()
-      
+
     return res
 
 def check_size(link):
@@ -122,13 +138,13 @@ def check_size(link):
     res = get_content(link)
     soup = BeautifulSoup(''.join(res), 'html.parser')
     captcha = check_captcha(soup)
-    
+
     while captcha == True:
         res = get_content(link)
         soup = BeautifulSoup(''.join(res), 'html.parser')
         captcha = check_captcha(soup)
         change_proxy()
-    
+
     divs = soup.findAll('div', { 'class' : 'clearfix' })
     table = divs[1].find('table', { 'class' : 'col_list' })
     size = table.findAll('td')[3].text.replace(u' ед.','').replace(' ','')
@@ -138,16 +154,19 @@ def check_size(link):
 def get_house_list(link):
     size = check_size(link)
     if size == 0: size = check_size(link)
-    
+
     pages = (int(size) / 10000) + 1
-    
+
     houses_ids = []
     for page in range(1,pages+1):
         res = get_content(link + '&page=' + str(page) + '&limit=10000')
         soup = BeautifulSoup(''.join(res), 'html.parser')
         captcha = check_captcha(soup)
-    
+
         while captcha == True:
+            if args.no_tor:
+                print "Captcha received: the limit of connections was likely exceeded, quitting"
+                sys.exit(-1)
             res = get_content(link + '&page=' + str(page) + '&limit=10000')
             soup = BeautifulSoup(''.join(res), 'html.parser')
             captcha = check_captcha(soup)
@@ -159,7 +178,7 @@ def get_house_list(link):
                 if td.find('a').has_attr('href') and 'myhouse' in td.find('a')['href']:
                     house_id = td.find('a')['href'].split('/')[4]
                     houses_ids.append(house_id)
-    
+
     return houses_ids
 
 def get_data_links(id):
@@ -170,24 +189,25 @@ def get_data_links(id):
         if id in row:
             r = region(row[0],row[1],row[2],row[3],row[4],row[5])
             regs.append(r)
-            
+
     return regs
 
 def check_captcha(soup):
-    captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})    
-    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup): 
+    captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup):
         return True
     else:
         return False
-    
+
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     #process house data to get main attributes
-    
+
     if args.originals_folder:
         if not os.path.isfile(args.originals_folder + '/' + house_id + ".html"):
             try:
                 res = urlopen_house(link + 'view/' + house_id,house_id)
             except:
+                print "Error with " + link + 'view/' + house_id + ": ", sys.exc_info()[0]
                 f_errors.write(link + 'view/' + house_id + '\n')
                 res = False
         else:
@@ -198,15 +218,15 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
        except:
            f_errors.write(link + 'view/' + house_id + '\n')
            res = False
-    
+
     if res != False:
         soup = BeautifulSoup(''.join(res),'html.parser')
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
-        
+
         if len(soup) > 0 and 'Time-out' not in soup.text and '502 Bad Gateway' not in soup.text: #u'Ошибка' not in soup.text
 
             address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
-            
+
             #GENERAL
             div = soup.find('div', { 'class' : 'fr' })
             tables = div.findAll('table')
@@ -245,11 +265,11 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
             div0 = divs[0]
             trs = div0.findAll('tr')
             lentrs = len(trs)
-            if lentrs > 58: 
+            if lentrs > 58:
                 trs_offset = lentrs - 58
             else:
                 trs_offset = 0
-            
+
             year = extract_value(trs[3])                            #5 Год ввода в эксплуатацию
             serie = extract_value(trs[5])                            #1 Серия
             house_type = extract_value(trs[7])                       #4 Тип жилого дома
@@ -269,14 +289,14 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
             area_land = extract_value(trs[41]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
             area_park = extract_value(trs[43]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
             cadno = trs[44].findAll('td')[1].text                    #12 кад номер
-            
+
             energy_class = extract_value(trs[48 + trs_offset])                    #13 Класс энергоэффективности
             blag_playground = extract_value(trs[51 + trs_offset])                 #14 Элементы благоустройства
             blag_sport = extract_value(trs[53 + trs_offset])                      #14 Элементы благоустройства
             blag_other = extract_value(trs[55 + trs_offset])                      #14 Элементы благоустройства
             other = extract_value(trs[57 + trs_offset])                           #14 Элементы благоустройства
 
-            
+
             #write to output
             csvwriter_housedata.writerow(dict(LAT=lat,
                                               LON=lon,
@@ -312,27 +332,28 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
             return True
 
 if __name__ == '__main__':
-    session = requesocks.session()
-    session.proxies = {'http':  'socks5://127.0.0.1:9150',
-                       'https': 'socks5://127.0.0.1:9150'}
-    try:
-        session.get('http://google.com').text
-    except:
-        print('Tor isn\'t running or not configured properly')
-        sys.exit(1)
-    
+    if not args.no_tor:
+        session = requesocks.session()
+        session.proxies = {'http':  'socks5://127.0.0.1:9150',
+                           'https': 'socks5://127.0.0.1:9150'}
+        try:
+            session.get('http://google.com').text
+        except:
+            print('Tor isn\'t running or not configured properly')
+            sys.exit(1)
+
     tid = args.id #2280999
     lvl1_link = 'http://www.reformagkh.ru/myhouse?tid=' + tid #+ '&sort=alphabet&item=mkd'
     house_link = 'http://www.reformagkh.ru/myhouse/profile/'
     #house_id = 8625429
-    
-    
+
+
     region = namedtuple('reg', 'lvl1name lvl2name lvl3name lvl1tid lvl2tid lvl3tid')
 
     #init errors.log
     f_errors = open('errors.txt','wb')
     f_ids = open('ids.txt','wb')
-    
+
     #init csv for housedata
     f_housedata_name = args.output_name   #data/housedata.csv
     f_housedata = open(f_housedata_name,'wb')
@@ -340,32 +361,55 @@ if __name__ == '__main__':
     fields_str = ','.join(fieldnames_data)
     f_housedata.write(fields_str+'\n')
     f_housedata.close()
-    
+
     f_housedata = open(f_housedata_name,'ab')
-    
+
     csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
-    
+
     regs = get_data_links(args.id)
-    
+
+    house_ids_fname = args.originals_folder + dirsep + 'house_ids.pickle'
+
     for reg in regs:
         if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
                 print(reg[0].decode('utf8') + ', ' + reg[1].decode('utf8') + ', ' + reg[2].decode('utf8'))
                 #get list of houses
-                if reg[5] == '': 
-                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
+                if args.cache_only:
+                    # load saved ids
+                    print('Loading cached house_ids from ', house_ids_fname)
+                    f_house_ids = open(house_ids_fname, 'rb')
+                    houses_ids = pickle.load(f_house_ids)
+                    f_house_ids.close()
                 else:
-                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
-                
+                    print('retrieve house ids from the site')
+                    if reg[5] == '':
+                        houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
+                    else:
+                        houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
+                    # save IDs in a file making a copy of an existing file
+                    print('saving house_ids to ', house_ids_fname)
+                    if os.path.isfile(house_ids_fname):
+                        bfile_name = house_ids_fname + '.{:%Y-%m-%dT%H.%M.%S}'.format(datetime.datetime.now())
+                        print('old building list backed up to ', bfile_name)
+                        shutil.move(house_ids_fname, bfile_name)
+                    f_house_ids = open(house_ids_fname, 'wb')
+                    pickle.dump(houses_ids, f_house_ids)
+                    f_house_ids.close()
+
+                #sys.exit(0)
+
                 pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
                 pbar.maxval = len(houses_ids)
-                
+
                 i = 0
                 for house_id in houses_ids:
                     i = i+1
                     res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
-                    if res == False:
+                    if not args.no_tor and res == False:
                         change_proxy()
                         res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
+                    if res == False:
+                        print('Failed to retrieve building data for id=', house_id)
                     pbar.update(pbar.currval+1)
                 pbar.finish()
 
