@@ -61,6 +61,7 @@ from stem.control import Controller
 import pickle
 import shutil
 import datetime
+from pytest import attrlist
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
@@ -331,6 +332,30 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                                               OTHER=other.encode('utf-8')))
             return True
 
+def load_attrlist():
+    attrlist_fname = "attributes.tsv"
+    attrlist_fh = open(attrlist_fname, 'rU')
+    attrlist_reader = csv.reader(attrlist_fh, delimiter='\t')
+    attrlist = []
+    ignorecols = [] # columns to be ignored
+    attrnames = [] # names of the attributes from the 2nd row
+    c=0
+    for row in attrlist_reader:
+        c += 1
+        if c == 3:
+            attrnames = [ s.strip(' ') for s in row ]
+            # ignore columns with no names
+            ignorecols = [ i for i,x in enumerate(attrnames) if not x ] # list of columns with no names
+            attrnames = [i for j, i in enumerate(attrnames) if j not in ignorecols] # now remove ignore elements
+            print ':'.join(attrnames)
+        elif c > 3:
+            row = [i for j, i in enumerate(row) if j not in ignorecols] # remove ignore columns
+            attrlist.append(dict(zip( attrnames, [ s.strip(' ').replace('\n', '') for s in row ] )))
+    
+    # TODO: create output table column name
+    
+    return attrlist
+    
 if __name__ == '__main__':
     if not args.no_tor:
         session = requesocks.session()
@@ -354,9 +379,13 @@ if __name__ == '__main__':
     f_errors = open('errors.txt','wb')
     f_ids = open('ids.txt','wb')
 
+    # load csv file with attribute descriptions
+    attrlist = load_attrlist()
+
     #init csv for housedata
     f_housedata_name = args.output_name   #data/housedata.csv
     f_housedata = open(f_housedata_name,'wb')
+    # replace this with attributes extracted from the attributes.tsv file
     fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER')
     fields_str = ','.join(fieldnames_data)
     f_housedata.write(fields_str+'\n')
