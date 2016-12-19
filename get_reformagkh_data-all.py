@@ -23,7 +23,7 @@
 #      python get_reformagkh_data-all.py 2291922 housedata.csv -of omsk --no_tor --cache_only
 #
 # to use with Anaconda do once after installing python 2.7 as py27:
-#     source activate py27 
+#     source activate py27
 #
 # Copyright (C) 2014-2016 Maxim Dubinin (sim@gis-lab.info)
 # Created: 18.03.2014
@@ -61,7 +61,7 @@ from stem.control import Controller
 import pickle
 import shutil
 import datetime
-from pytest import attrlist
+#from pytest import attrlist
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
@@ -75,6 +75,12 @@ dirsep = '/' if not os.name == 'nt' else '\\'
 if args.originals_folder:
     if not args.originals_folder.endswith(dirsep): args.originals_folder = args.originals_folder + dirsep
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
+if args.cache_only:
+    if not args.originals_folder:
+        print('cache-only requested but originals folder was not specified, quitting...')
+        sys.exit(-1)
+    if args.no_tor:
+        print('with cache_only no_tor has no effect')
 
 def console_out(text):
     #write httplib error messages to console
@@ -87,10 +93,15 @@ def get_content(link):
     numtries = 5
     timeoutvalue = 40
 
+    # this function should never be called if no_cache is specified
+    assert not args.no_cache
+
     if args.no_tor:
+        print('Directly retrieving ' + link)
         live_url = urllib2.urlopen(link)
         res = live_url.read()
     else:
+        print('TOR Retrieving ' + link)
         for i in range(1,numtries+1):
             try:
                 res = session.get(link).text
@@ -204,13 +215,18 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     #process house data to get main attributes
 
     if args.originals_folder:
-        if not os.path.isfile(args.originals_folder + '/' + house_id + ".html"):
-            try:
-                res = urlopen_house(link + 'view/' + house_id,house_id)
-            except:
-                print "Error with " + link + 'view/' + house_id + ": ", sys.exc_info()[0]
-                f_errors.write(link + 'view/' + house_id + '\n')
+        cache_fname = args.originals_folder + '/' + house_id + ".html"
+        if not os.path.isfile(cache_fname):
+            if args.cache_only:
+                print('Cache file ' + cache_fname + ' does not exist, skipping');
                 res = False
+            else:
+                try:
+                    res = urlopen_house(link + 'view/' + house_id,house_id)
+                except:
+                    print "Error with " + link + 'view/' + house_id + ": ", sys.exc_info()[0]
+                    f_errors.write(link + 'view/' + house_id + '\n')
+                    res = False
         else:
             res = open(args.originals_folder + '/' + house_id + ".html",'rb').read()
     else:
@@ -347,15 +363,15 @@ def load_attrlist():
             # ignore columns with no names
             ignorecols = [ i for i,x in enumerate(attrnames) if not x ] # list of columns with no names
             attrnames = [i for j, i in enumerate(attrnames) if j not in ignorecols] # now remove ignore elements
-            print ':'.join(attrnames)
+            #print ':'.join(attrnames)
         elif c > 3:
             row = [i for j, i in enumerate(row) if j not in ignorecols] # remove ignore columns
             attrlist.append(dict(zip( attrnames, [ s.strip(' ').replace('\n', '') for s in row ] )))
-    
+
     # TODO: create output table column name
-    
+
     return attrlist
-    
+
 if __name__ == '__main__':
     if not args.no_tor:
         session = requesocks.session()
@@ -385,7 +401,7 @@ if __name__ == '__main__':
     #init csv for housedata
     f_housedata_name = args.output_name   #data/housedata.csv
     f_housedata = open(f_housedata_name,'wb')
-    # replace this with attributes extracted from the attributes.tsv file
+    # TODO: replace this with attributes extracted from the attributes.tsv file
     fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER')
     fields_str = ','.join(fieldnames_data)
     f_housedata.write(fields_str+'\n')
@@ -405,7 +421,7 @@ if __name__ == '__main__':
                 #get list of houses
                 if args.cache_only:
                     # load saved ids
-                    print('Loading cached house_ids from ', house_ids_fname)
+                    print('Loading cached house_ids from ' + house_ids_fname)
                     f_house_ids = open(house_ids_fname, 'rb')
                     houses_ids = pickle.load(f_house_ids)
                     f_house_ids.close()
@@ -419,28 +435,28 @@ if __name__ == '__main__':
                     print('saving house_ids to ', house_ids_fname)
                     if os.path.isfile(house_ids_fname):
                         bfile_name = house_ids_fname + '.{:%Y-%m-%dT%H.%M.%S}'.format(datetime.datetime.now())
-                        print('old building list backed up to ', bfile_name)
+                        print('old building list backed up to ' + bfile_name)
                         shutil.move(house_ids_fname, bfile_name)
                     f_house_ids = open(house_ids_fname, 'wb')
                     pickle.dump(houses_ids, f_house_ids)
                     f_house_ids.close()
 
-                #sys.exit(0)
-
-                pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
-                pbar.maxval = len(houses_ids)
+                #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
+                #pbar.maxval = len(houses_ids)
 
                 i = 0
                 for house_id in houses_ids:
                     i = i+1
+                    print('\tProcessing house_id=' + house_id)
                     res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
                     if not args.no_tor and res == False:
                         change_proxy()
                         res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
                     if res == False:
-                        print('Failed to retrieve building data for id=', house_id)
-                    pbar.update(pbar.currval+1)
-                pbar.finish()
+                        print('Failed to retrieve building data for id=' + house_id)
+                    #pbar.update(pbar.currval+1)
+                print('Finished ' + houses_ids + ' house_ids')
+                #pbar.finish()
 
     f_housedata.close()
     f_errors.close()
