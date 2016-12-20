@@ -61,6 +61,7 @@ from stem.control import Controller
 import pickle
 import shutil
 import datetime
+import re
 #from pytest import attrlist
 
 parser = argparse.ArgumentParser()
@@ -241,114 +242,143 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
 
         if len(soup) > 0 and 'Time-out' not in soup.text and '502 Bad Gateway' not in soup.text: #u'Ошибка' not in soup.text
+            return parse_house_page(soup)
 
-            address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
+def parse_house_page_old(soup):
+    address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
 
-            #GENERAL
-            div = soup.find('div', { 'class' : 'fr' })
-            tables = div.findAll('table')
-            table0 = tables[0]
-            trs = table0.findAll('tr')
+    #GENERAL
+    div = soup.find('div', { 'class' : 'fr' })
+    tables = div.findAll('table')
+    table0 = tables[0]
+    trs = table0.findAll('tr')
 
-            mgmt_company = trs[0].findAll('td')[1].text.strip()                  #gen8 Домом управляет
-            if trs[0].findAll('td')[1].find('a'):
-                mgmt_company_link = 'http://www.reformagkh.ru' + trs[0].findAll('td')[1].find('a')['href']
-                mgmt_company_link = mgmt_company_link.split('?')[0]
-            else:
-                mgmt_company_link = ''
+    mgmt_company = trs[0].findAll('td')[1].text.strip()                  #gen8 Домом управляет
+    if trs[0].findAll('td')[1].find('a'):
+        mgmt_company_link = 'http://www.reformagkh.ru' + trs[0].findAll('td')[1].find('a')['href']
+        mgmt_company_link = mgmt_company_link.split('?')[0]
+    else:
+        mgmt_company_link = ''
 
-            table1 = tables[1]
-            trs = table1.findAll('tr')
-            status = '' #trs[1].findAll('td')[1].text.strip()                    #gen7 Состояние дома (куда-то исчезло в последней версии)
+    table1 = tables[1]
+    trs = table1.findAll('tr')
+    status = '' #trs[1].findAll('td')[1].text.strip()                    #gen7 Состояние дома (куда-то исчезло в последней версии)
 
-            table1 = tables[1]
-            trs = table1.findAll('tr')
-            #area = float(trs[2].findAll('td')[1].text.strip().replace(' ',''))  #gen1 Общая площадь
-            #year = trs[6].findAll('td')[1].text.strip()                          #gen6 Год ввода в экспл
-            lastupdate = trs[8].findAll('td')[1].text.strip()                    #gen2 Последнее изменение анкеты
-            lastupdate = ' '.join(lastupdate.replace('\n','').split())
-            servicedate_start = trs[10].findAll('td')[1].text.strip()            #gen3 Дата начала обслуживания дома
-            servicedate_end = '' #trs[5].findAll('td')[1].text.strip()           #gen4 Плановая дата прекращения обслуживания дома
+    table1 = tables[1]
+    trs = table1.findAll('tr')
+    #area = float(trs[2].findAll('td')[1].text.strip().replace(' ',''))  #gen1 Общая площадь
+    #year = trs[6].findAll('td')[1].text.strip()                          #gen6 Год ввода в экспл
+    lastupdate = trs[8].findAll('td')[1].text.strip()                    #gen2 Последнее изменение анкеты
+    lastupdate = ' '.join(lastupdate.replace('\n','').split())
+    servicedate_start = trs[10].findAll('td')[1].text.strip()            #gen3 Дата начала обслуживания дома
+    servicedate_end = '' #trs[5].findAll('td')[1].text.strip()           #gen4 Плановая дата прекращения обслуживания дома
 
-            #TODO extract lat/long coords from script
-            if 'center' in soup.findAll('script')[11]:
-                lat,lon = soup.findAll('script')[11].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
-            else:
-                lat,lon = soup.findAll('script')[12].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
+    #TODO extract lat/long coords from script
+    if 'center' in soup.findAll('script')[11]:
+        lat,lon = soup.findAll('script')[11].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
+    else:
+        lat,lon = soup.findAll('script')[12].text.split('\n')[3].split('[')[1].split(']')[0].split(',')
 
-            #PASSPORT
-            ##GENERAL
-            divs = soup.findAll('div', { 'class' : 'numbered' })
-            div0 = divs[0]
-            trs = div0.findAll('tr')
-            lentrs = len(trs)
-            if lentrs > 58:
-                trs_offset = lentrs - 58
-            else:
-                trs_offset = 0
+    #PASSPORT
+    ##GENERAL
+    divs = soup.findAll('div', { 'class' : 'numbered' })
+    div0 = divs[0]
+    trs = div0.findAll('tr')
+    lentrs = len(trs)
+    if lentrs > 58:
+        trs_offset = lentrs - 58
+    else:
+        trs_offset = 0
 
-            year = extract_value(trs[3])                            #5 Год ввода в эксплуатацию
-            serie = extract_value(trs[5])                            #1 Серия
-            house_type = extract_value(trs[7])                       #4 Тип жилого дома
-            capfond = extract_value(trs[9])                          #5 Способ формирования фонда капитального ремонта
-            avar = extract_value(trs[11])                            #6 Дом признан аварийным
-            levels_max = extract_subvalue(trs[12], 1)                #7 Этажность: макс
-            levels_min = extract_subvalue(trs[12], 3)                #7 Этажность: мин
-            doors = extract_value(trs[18])                           #9 Количество подъездов
-            room_count = extract_value(trs[23])                      #10 Количество помещений
-            room_count_live = extract_value(trs[26])                 #10 Количество помещений: жилых
-            room_count_nonlive = extract_value(trs[28])              #10 Количество помещений: нежилых
-            area = extract_value(trs[31]).replace(' ','')            #11 Общая площадь дома
-            area_live = extract_value(trs[34]).replace(' ','')       #11 Общая площадь дома, жилых
-            area_nonlive = extract_value(trs[36]).replace(' ','')    #11 Общая площадь дома, нежилых
+    year = extract_value(trs[3])                            #5 Год ввода в эксплуатацию
+    serie = extract_value(trs[5])                            #1 Серия
+    house_type = extract_value(trs[7])                       #4 Тип жилого дома
+    capfond = extract_value(trs[9])                          #5 Способ формирования фонда капитального ремонта
+    avar = extract_value(trs[11])                            #6 Дом признан аварийным
+    levels_max = extract_subvalue(trs[12], 1)                #7 Этажность: макс
+    levels_min = extract_subvalue(trs[12], 3)                #7 Этажность: мин
+    doors = extract_value(trs[18])                           #9 Количество подъездов
+    room_count = extract_value(trs[23])                      #10 Количество помещений
+    room_count_live = extract_value(trs[26])                 #10 Количество помещений: жилых
+    room_count_nonlive = extract_value(trs[28])              #10 Количество помещений: нежилых
+    area = extract_value(trs[31]).replace(' ','')            #11 Общая площадь дома
+    area_live = extract_value(trs[34]).replace(' ','')       #11 Общая площадь дома, жилых
+    area_nonlive = extract_value(trs[36]).replace(' ','')    #11 Общая площадь дома, нежилых
 
-            area_gen = extract_value(trs[38]).replace(' ','')        #11 Общая площадь помещений, входящих в состав общего имущества
-            area_land = extract_value(trs[41]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
-            area_park = extract_value(trs[43]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
-            cadno = trs[44].findAll('td')[1].text                    #12 кад номер
+    area_gen = extract_value(trs[38]).replace(' ','')        #11 Общая площадь помещений, входящих в состав общего имущества
+    area_land = extract_value(trs[41]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
+    area_park = extract_value(trs[43]).replace(' ','')       #12 Общие сведения о земельном участке, на котором расположен многоквартирный дом
+    cadno = trs[44].findAll('td')[1].text                    #12 кад номер
 
-            energy_class = extract_value(trs[48 + trs_offset])                    #13 Класс энергоэффективности
-            blag_playground = extract_value(trs[51 + trs_offset])                 #14 Элементы благоустройства
-            blag_sport = extract_value(trs[53 + trs_offset])                      #14 Элементы благоустройства
-            blag_other = extract_value(trs[55 + trs_offset])                      #14 Элементы благоустройства
-            other = extract_value(trs[57 + trs_offset])                           #14 Элементы благоустройства
+    energy_class = extract_value(trs[48 + trs_offset])                    #13 Класс энергоэффективности
+    blag_playground = extract_value(trs[51 + trs_offset])                 #14 Элементы благоустройства
+    blag_sport = extract_value(trs[53 + trs_offset])                      #14 Элементы благоустройства
+    blag_other = extract_value(trs[55 + trs_offset])                      #14 Элементы благоустройства
+    other = extract_value(trs[57 + trs_offset])                           #14 Элементы благоустройства
 
 
-            #write to output
-            csvwriter_housedata.writerow(dict(LAT=lat,
-                                              LON=lon,
-                                              HOUSE_ID=house_id,
-                                              ADDRESS=address.encode('utf-8'),
-                                              YEAR=year.encode('utf-8'),
-                                              LASTUPDATE=lastupdate.encode('utf-8'),
-                                              SERVICEDATE_START=servicedate_start.encode('utf-8'),
-                                              SERIE=serie.encode('utf-8'),
-                                              HOUSE_TYPE=house_type.encode('utf-8'),
-                                              CAPFOND=capfond.encode('utf-8'),
-                                              MGMT_COMPANY=mgmt_company.encode('utf-8'),
-                                              MGMT_COMPANY_LINK=mgmt_company_link.encode('utf-8'),
-                                              AVAR=avar.encode('utf-8'),
-                                              LEVELS_MAX=levels_max.encode('utf-8'),
-                                              LEVELS_MIN=levels_min.encode('utf-8'),
-                                              DOORS=doors.encode('utf-8'),
-                                              ROOM_COUNT=room_count.encode('utf-8'),
-                                              ROOM_COUNT_LIVE=room_count_live.encode('utf-8'),
-                                              ROOM_COUNT_NONLIVE=room_count_nonlive.encode('utf-8'),
-                                              AREA=area.encode('utf-8'),
-                                              AREA_LIVE=area_live.encode('utf-8'),
-                                              AREA_NONLIVE=area_nonlive.encode('utf-8'),
-                                              AREA_GEN=area_gen.encode('utf-8'),
-                                              AREA_LAND=area_land.encode('utf-8'),
-                                              AREA_PARK=area_park.encode('utf-8'),
-                                              #CADNO=cadno.encode('utf-8'),
-                                              ENERGY_CLASS=energy_class.encode('utf-8'),
-                                              BLAG_PLAYGROUND=blag_playground.encode('utf-8'),
-                                              BLAG_SPORT=blag_sport.encode('utf-8'),
-                                              BLAG_OTHER=blag_other.encode('utf-8'),
-                                              OTHER=other.encode('utf-8')))
-            return True
+    #write to output
+    csvwriter_housedata.writerow(dict(LAT=lat,
+                                      LON=lon,
+                                      HOUSE_ID=house_id,
+                                      ADDRESS=address.encode('utf-8'),
+                                      YEAR=year.encode('utf-8'),
+                                      LASTUPDATE=lastupdate.encode('utf-8'),
+                                      SERVICEDATE_START=servicedate_start.encode('utf-8'),
+                                      SERIE=serie.encode('utf-8'),
+                                      HOUSE_TYPE=house_type.encode('utf-8'),
+                                      CAPFOND=capfond.encode('utf-8'),
+                                      MGMT_COMPANY=mgmt_company.encode('utf-8'),
+                                      MGMT_COMPANY_LINK=mgmt_company_link.encode('utf-8'),
+                                      AVAR=avar.encode('utf-8'),
+                                      LEVELS_MAX=levels_max.encode('utf-8'),
+                                      LEVELS_MIN=levels_min.encode('utf-8'),
+                                      DOORS=doors.encode('utf-8'),
+                                      ROOM_COUNT=room_count.encode('utf-8'),
+                                      ROOM_COUNT_LIVE=room_count_live.encode('utf-8'),
+                                      ROOM_COUNT_NONLIVE=room_count_nonlive.encode('utf-8'),
+                                      AREA=area.encode('utf-8'),
+                                      AREA_LIVE=area_live.encode('utf-8'),
+                                      AREA_NONLIVE=area_nonlive.encode('utf-8'),
+                                      AREA_GEN=area_gen.encode('utf-8'),
+                                      AREA_LAND=area_land.encode('utf-8'),
+                                      AREA_PARK=area_park.encode('utf-8'),
+                                      #CADNO=cadno.encode('utf-8'),
+                                      ENERGY_CLASS=energy_class.encode('utf-8'),
+                                      BLAG_PLAYGROUND=blag_playground.encode('utf-8'),
+                                      BLAG_SPORT=blag_sport.encode('utf-8'),
+                                      BLAG_OTHER=blag_other.encode('utf-8'),
+                                      OTHER=other.encode('utf-8')))
+    return True
+
+def parse_house_page(soup):
+    """Parses a house page using attrlist information"""
+
+    # create output variable name from the section names
+    sect_attrs = ['section-rus', 'subsection-rus', 'attribute-rus', 'subattribute-rus', 'subsubattribute-rus']
+    cur_sect = dict.fromkeys(sect_attrs)
+
+    fix_child = re.compile('nth-child')
+    for row in attrlist:
+
+        # update section attributes
+        for attr in sect_attrs:
+            cur_sect[attr] = row[attr] or cur_sect[attr]
+
+        if row['Selector Code']:
+            print 'Variable:', '->'.join(filter(None, cur_sect.values())) # TODO: fix the sequence of subsections
+            fixed_code = re.sub('nth-child', 'nth-of-type', row['Selector Code'])
+            print 'Searching for Selector Code:', row['Selector Code'], fixed_code
+
+            result = soup.select(fixed_code)
+
+            if result:
+                print '\tFound:', result[0].text.strip().encode('utf-8')
+
 
 def load_attrlist():
+    """Loads the list of attributes and their id string from a CSV file."""
+
     attrlist_fname = "attributes.tsv"
     attrlist_fh = open(attrlist_fname, 'rU')
     attrlist_reader = csv.reader(attrlist_fh, delimiter='\t')
@@ -447,7 +477,7 @@ if __name__ == '__main__':
                 i = 0
                 for house_id in houses_ids:
                     i = i+1
-                    print('\tProcessing house_id=' + house_id)
+                    print i, '\tProcessing house_id=', house_id
                     res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
                     if not args.no_tor and res == False:
                         change_proxy()
