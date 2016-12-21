@@ -18,6 +18,10 @@
 #           -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 #           --cache_only only parse cache, do not touch the web site
 #           --no_tor do not use tor, connect to the site directly
+#           --parser PARSER specify which parser to use:
+#               none -- do not use any parser, only read/download pages
+#               original -- use parser from the original project (limited set of variables)
+#               attrlist -- use parser and attribute list loaded from tsv file
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
 #      python get_reformagkh_data-all.py 2291922 housedata.csv -of omsk --no_tor --cache_only
@@ -62,6 +66,7 @@ import pickle
 import shutil
 import datetime
 import re
+import editdistance
 #from pytest import attrlist
 
 parser = argparse.ArgumentParser()
@@ -71,6 +76,7 @@ parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all,
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 parser.add_argument('--no_tor', help='Do not use tor connection', action="store_true")
 parser.add_argument('--cache_only', help='Do not connect to the web site, use only cached entries', action="store_true")
+parser.add_argument('--parser', help='Parser to use', default='original', choices=['original', 'attrlist', 'none'])
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\'
 if args.originals_folder:
@@ -237,14 +243,21 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
            f_errors.write(link + 'view/' + house_id + '\n')
            res = False
 
-    if res != False:
+    if res != False and args.parser != 'none':
         soup = BeautifulSoup(''.join(res),'html.parser')
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
 
         if len(soup) > 0 and 'Time-out' not in soup.text and '502 Bad Gateway' not in soup.text: #u'Ошибка' not in soup.text
-            return parse_house_page(soup)
+            if args.parser == 'attrlist':
+                return parse_house_page_attrlist(soup)
+            else:
+                return parse_house_page_original(soup)
+        else:
+            return False
+    else:
+        return True
 
-def parse_house_page_old(soup):
+def parse_house_page_original(soup):
     address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
 
     #GENERAL
@@ -351,30 +364,44 @@ def parse_house_page_old(soup):
                                       OTHER=other.encode('utf-8')))
     return True
 
-def parse_house_page(soup):
+def parse_house_page_attrlist(soup):
     """Parses a house page using attrlist information"""
 
     # create output variable name from the section names
     sect_attrs = ['section-rus', 'subsection-rus', 'attribute-rus', 'subattribute-rus', 'subsubattribute-rus']
     cur_sect = dict.fromkeys(sect_attrs)
 
-    fix_child = re.compile('nth-child')
     for row in attrlist:
 
         # update section attributes
         for attr in sect_attrs:
             cur_sect[attr] = row[attr] or cur_sect[attr]
+            expected_attr_string = row[attr] or expected_attr_string # expected attr string is set to the last section name
 
         if row['Selector Code']:
-            print 'Variable:', '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
-            fixed_code = re.sub('nth-child', 'nth-of-type', row['Selector Code']) # this is needed because bs does not support nth-child
-            print 'Searching for Selector Code:', row['Selector Code'], fixed_code
+            var_name = '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
+            fixed_selector_code = re.sub('nth-child', 'nth-of-type', row['Selector Code']) # this is needed because bs does not support nth-child
+            #print 'Searching for Selector Code:', row['Selector Code'], fixed_code
 
-            result = soup.select(fixed_code)
+            result = soup.select(fixed_selector_code)
 
             if result:
-                print '\tFound:', result[0].text.strip().encode('utf-8')
+                found_attr_string = result[0].text.strip().encode('utf-8')
 
+                # value extraction
+                #val_selector_code = re.sub()
+
+                csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
+                                                  ATTR_NAME=var_name,
+                                                  FOUND_STR=found_attr_string,
+                                                  ED_DIST=editdistance.eval(expected_attr_string,found_attr_string),
+                                                  VALUE='skipped'))
+            else: # not found
+                csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
+                                                  ATTR_NAME=var_name,
+                                                  FOUND_STR=None,
+                                                  ED_DIST=None,
+                                                  VALUE=None))
 
 def load_attrlist():
     """Loads the list of attributes and their id string from a CSV file."""
@@ -418,24 +445,29 @@ if __name__ == '__main__':
     house_link = 'http://www.reformagkh.ru/myhouse/profile/'
     #house_id = 8625429
 
-
     region = namedtuple('reg', 'lvl1name lvl2name lvl3name lvl1tid lvl2tid lvl3tid')
 
     #init errors.log
     f_errors = open('errors.txt','wb')
     f_ids = open('ids.txt','wb')
 
-    # load csv file with attribute descriptions
-    attrlist = load_attrlist()
+    # parser intialization
+    if args.parser == 'original':
+        #init csv for housedata
+        fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER')
 
-    #init csv for housedata
-    f_housedata_name = args.output_name   #data/housedata.csv
-    f_housedata = open(f_housedata_name,'wb')
-    # TODO: replace this with attributes extracted from the attributes.tsv file
-    fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER')
-    fields_str = ','.join(fieldnames_data)
-    f_housedata.write(fields_str+'\n')
-    f_housedata.close()
+    elif args.parser == 'attrlist':
+        # load csv file with attribute descriptions
+        attrlist = load_attrlist()
+        fieldnames_data = ('HOUSE_ID','ATTR_NAME','FOUND_STR','ED_DIST','VALUE')
+
+    # create an output file housedata.csv with the requested field names
+    if args.parser != 'none':
+        f_housedata_name = args.output_name   #data/housedata.csv
+        f_housedata = open(f_housedata_name,'wb')
+        fields_str = ','.join(fieldnames_data)
+        f_housedata.write(fields_str+'\n')
+        f_housedata.close()
 
     f_housedata = open(f_housedata_name,'ab')
 
@@ -485,9 +517,10 @@ if __name__ == '__main__':
                     if res == False:
                         print('Failed to retrieve building data for id=' + house_id)
                     #pbar.update(pbar.currval+1)
-                print('Finished ' + houses_ids + ' house_ids')
+                print 'Processed', i, 'house_ids'
                 #pbar.finish()
 
-    f_housedata.close()
+    if args.parser == 'original':
+        f_housedata.close()
     f_errors.close()
     f_ids.close()
