@@ -366,8 +366,8 @@ def parse_house_page(soup):
             cur_sect[attr] = row[attr] or cur_sect[attr]
 
         if row['Selector Code']:
-            print 'Variable:', '->'.join(filter(None, cur_sect.values())) # TODO: fix the sequence of subsections
-            fixed_code = re.sub('nth-child', 'nth-of-type', row['Selector Code'])
+            print 'Variable:', '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
+            fixed_code = re.sub('nth-child', 'nth-of-type', row['Selector Code']) # this is needed because bs does not support nth-child
             print 'Searching for Selector Code:', row['Selector Code'], fixed_code
 
             result = soup.select(fixed_code)
