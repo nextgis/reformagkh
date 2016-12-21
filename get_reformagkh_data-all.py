@@ -376,30 +376,33 @@ def parse_house_page_attrlist(soup):
         # update section attributes
         for attr in sect_attrs:
             cur_sect[attr] = row[attr] or cur_sect[attr]
-            expected_attr_string = row[attr] or expected_attr_string # expected attr string is set to the last section name
+            expected_attr_name = row[attr] or expected_attr_name # expected attr string is set to the last section name
 
-        if row['Selector Code']:
-            var_name = '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
-            fixed_selector_code = re.sub('nth-child', 'nth-of-type', row['Selector Code']) # this is needed because bs does not support nth-child
+        if row['Selector Code for Name']:
+            attr_name = '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
+            fixed_selector_code_name = re.sub('nth-child', 'nth-of-type', row['Selector Code for Name']) # this is needed because bs does not support nth-child
+            fixed_selector_code_value = re.sub('nth-child', 'nth-of-type', row['Selector Code for Value'])
             #print 'Searching for Selector Code:', row['Selector Code'], fixed_code
 
-            result = soup.select(fixed_selector_code)
+            result_name = soup.select(fixed_selector_code_name)
 
-            if result:
-                found_attr_string = result[0].text.strip().encode('utf-8')
+            if result_name:
+                found_attr_name = result_name[0].text.strip().encode('utf-8')
 
                 # value extraction
-                #val_selector_code = re.sub()
+                result_value = soup.select(fixed_selector_code_value)
+
+                found_attr_value = result_value[0].text.strip().encode('utf-8') if result_value else 'not found'
 
                 csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
-                                                  ATTR_NAME=var_name,
-                                                  FOUND_STR=found_attr_string,
-                                                  ED_DIST=editdistance.eval(expected_attr_string,found_attr_string),
-                                                  VALUE='skipped'))
+                                                  ATTR_NAME=attr_name,
+                                                  FOUND_NAME=found_attr_name,
+                                                  ED_DIST=editdistance.eval(expected_attr_name,found_attr_name),
+                                                  VALUE=found_attr_value))
             else: # not found
                 csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
-                                                  ATTR_NAME=var_name,
-                                                  FOUND_STR=None,
+                                                  ATTR_NAME=attr_name,
+                                                  FOUND_NAME=None,
                                                   ED_DIST=None,
                                                   VALUE=None))
 
@@ -459,7 +462,7 @@ if __name__ == '__main__':
     elif args.parser == 'attrlist':
         # load csv file with attribute descriptions
         attrlist = load_attrlist()
-        fieldnames_data = ('HOUSE_ID','ATTR_NAME','FOUND_STR','ED_DIST','VALUE')
+        fieldnames_data = ('HOUSE_ID','ATTR_NAME','FOUND_NAME','ED_DIST','VALUE')
 
     # create an output file housedata.csv with the requested field names
     if args.parser != 'none':
