@@ -99,7 +99,7 @@ if args.cache_only:
 if args.outputformat == 'sqlite' and args.parser == 'origina':
         print 'sqlite outputformat works only for attrlist parser'
         sys.exit(-1)
-if args.parser == 'none' and args.outputformat:
+if args.parser == 'none' and args.outputformat != 'csv':
     print 'outputformat has no effect when parser=none'
 
 def console_out(text):
@@ -114,7 +114,7 @@ def get_content(link):
     timeoutvalue = 40
 
     # this function should never be called if no_cache is specified
-    assert not args.no_cache
+    assert not args.cache_only
 
     if args.no_tor:
         print('Directly retrieving ' + link)
@@ -510,9 +510,9 @@ if __name__ == '__main__':
             sqcur.execute('create table if not exists attrvals(' + ', '.join([ s+' '+t for s,t in zip(fieldnames_data, fieldnames_type)]) + ', primary key(HOUSE_ID, ATTR_NAME) )')
             conn.commit()
 
-    f_housedata = open(f_housedata_name,'ab')
-
-    csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
+    if args.parser == 'csv':
+        f_housedata = open(f_housedata_name,'ab')
+        csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
 
     regs = get_data_links(args.id)
 
@@ -524,18 +524,18 @@ if __name__ == '__main__':
                 #get list of houses
                 if args.cache_only:
                     # load saved ids
-                    print('Loading cached house_ids from ' + house_ids_fname)
+                    print 'Loading cached house_ids from ', house_ids_fname
                     f_house_ids = open(house_ids_fname, 'rb')
                     houses_ids = pickle.load(f_house_ids)
                     f_house_ids.close()
                 else:
-                    print('retrieve house ids from the site')
+                    print 'retrieve house ids from the site'
                     if reg[5] == '':
                         houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
                     else:
                         houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
                     # save IDs in a file making a copy of an existing file
-                    print('saving house_ids to ', house_ids_fname)
+                    print 'saving house_ids to ', house_ids_fname
                     if os.path.isfile(house_ids_fname):
                         out_of_the_way(house_ids_fname)
                     f_house_ids = open(house_ids_fname, 'wb')
@@ -554,7 +554,7 @@ if __name__ == '__main__':
                         change_proxy()
                         res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
                     if res == False:
-                        print('Failed to retrieve building data for id=' + house_id)
+                        print 'Failed to retrieve building data for id=', house_id
                     #pbar.update(pbar.currval+1)
                 print 'Processed', i, 'house_ids'
                 #pbar.finish()
