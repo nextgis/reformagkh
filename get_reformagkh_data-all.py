@@ -388,7 +388,10 @@ def parse_house_page_attrlist(soup):
 
         # update section attributes
         for attr in sect_attrs:
-            cur_sect[attr] = row[attr] or cur_sect[attr]
+            if row[attr]:
+                cur_sect[attr] = row[attr]
+                for i in range(sect_attrs.index(attr)+1,len(sect_attrs)-1):
+                    cur_sect[sect_attrs[i]] = None
             expected_attr_name = row[attr] or expected_attr_name # expected attr string is set to the last section name
 
         if row['Selector Code for Name']:
@@ -422,7 +425,10 @@ def parse_house_page_attrlist(soup):
             if args.outputformat == 'csv':
                 csvwriter_housedata.writerow(result_set)
             else:
-                sqcur.execute("insert into attrvals values (" + fieldnames_phld + ")", [ str(result_set[k]).decode('utf8') for k in fieldnames_data])
+                result_set['ATTR_NAME'] = result_set['ATTR_NAME'].decode('utf-8') if result_set['ATTR_NAME'] else None
+                result_set['FOUND_NAME'] = result_set['FOUND_NAME'].decode('utf-8') if result_set['FOUND_NAME'] else None
+                result_set['VALUE'] = result_set['VALUE'].decode('utf-8') if result_set['VALUE'] else None
+                sqcur.execute("insert into attrvals values (" + fieldnames_phld + ")", [ result_set[k] for k in fieldnames_data])
 
         if args.outputformat == 'sqlite':
             conn.commit()
