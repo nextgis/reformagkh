@@ -398,7 +398,7 @@ def parse_house_page_attrlist(soup):
             attr_name = '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
             fixed_selector_code_name = re.sub('nth-child', 'nth-of-type', row['Selector Code for Name']) # this is needed because bs does not support nth-child
             fixed_selector_code_value = re.sub('nth-child', 'nth-of-type', row['Selector Code for Value'])
-            #print 'Searching for Selector Code:', row['Selector Code'], fixed_code
+            #print attr_name, '==>', row['Selector Code for Name'], '==>', fixed_selector_code_name
 
             result_name = soup.select(fixed_selector_code_name)
 
