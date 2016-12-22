@@ -20,8 +20,11 @@
 #           --no_tor do not use tor, connect to the site directly
 #           --parser PARSER specify which parser to use:
 #               none -- do not use any parser, only read/download pages
-#               original -- use parser from the original project (limited set of variables)
+#               original -- use parser from the original project (limited set of variables, default)
 #               attrlist -- use parser and attribute list loaded from tsv file
+#           --outputformat FORMAT specify output format
+#               csv -- CSV (default)
+#               sqlite -- sqlite database (only implemented for attrlist parser)
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
 #      python get_reformagkh_data-all.py 2291922 housedata.csv -of omsk --no_tor --cache_only
@@ -67,6 +70,7 @@ import shutil
 import datetime
 import re
 import editdistance
+import sqlite3
 #from pytest import attrlist
 
 parser = argparse.ArgumentParser()
@@ -77,17 +81,26 @@ parser.add_argument('-of','--originals_folder', help='Folder to save original ht
 parser.add_argument('--no_tor', help='Do not use tor connection', action="store_true")
 parser.add_argument('--cache_only', help='Do not connect to the web site, use only cached entries', action="store_true")
 parser.add_argument('--parser', help='Parser to use', default='original', choices=['original', 'attrlist', 'none'])
+parser.add_argument('--outputformat', help='output format', default='csv', choices=['csv', 'sqlite'])
+parser.add_argument('--outputmode', help='output mode', default='append', choices=['append', 'overwrite'])
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\'
+
+# check if arguments make sense
 if args.originals_folder:
     if not args.originals_folder.endswith(dirsep): args.originals_folder = args.originals_folder + dirsep
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
 if args.cache_only:
     if not args.originals_folder:
-        print('cache-only requested but originals folder was not specified, quitting...')
+        print 'cache-only requested but originals folder was not specified, quitting...'
         sys.exit(-1)
     if args.no_tor:
-        print('with cache_only no_tor has no effect')
+        print 'with cache_only no_tor has no effect'
+if args.outputformat == 'sqlite' and args.parser == 'origina':
+        print 'sqlite outputformat works only for attrlist parser'
+        sys.exit(-1)
+if args.parser == 'none' and args.outputformat:
+    print 'outputformat has no effect when parser=none'
 
 def console_out(text):
     #write httplib error messages to console
@@ -394,17 +407,25 @@ def parse_house_page_attrlist(soup):
 
                 found_attr_value = result_value[0].text.strip().encode('utf-8') if result_value else 'not found'
 
-                csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
-                                                  ATTR_NAME=attr_name,
-                                                  FOUND_NAME=found_attr_name,
-                                                  ED_DIST=editdistance.eval(expected_attr_name,found_attr_name),
-                                                  VALUE=found_attr_value))
+                result_set = dict(HOUSE_ID=house_id,
+                                  ATTR_NAME=attr_name,
+                                  FOUND_NAME=found_attr_name,
+                                  ED_DIST=editdistance.eval(expected_attr_name,found_attr_name),
+                                  VALUE=found_attr_value)
             else: # not found
-                csvwriter_housedata.writerow(dict(HOUSE_ID=house_id,
-                                                  ATTR_NAME=attr_name,
-                                                  FOUND_NAME=None,
-                                                  ED_DIST=None,
-                                                  VALUE=None))
+                result_set = dict(HOUSE_ID=house_id,
+                                  ATTR_NAME=attr_name,
+                                  FOUND_NAME=None,
+                                  ED_DIST=None,
+                                  VALUE=None)
+
+            if args.outputformat == 'csv':
+                csvwriter_housedata.writerow(result_set)
+            else:
+                sqcur.execute("insert into attrvals values (" + fieldnames_phld + ")", [ str(result_set[k]).decode('utf8') for k in fieldnames_data])
+
+        if args.outputformat == 'sqlite':
+            conn.commit()
 
 def load_attrlist():
     """Loads the list of attributes and their id string from a CSV file."""
@@ -431,6 +452,12 @@ def load_attrlist():
     # TODO: create output table column name
 
     return attrlist
+
+def out_of_the_way(file_name):
+    if os.path.isfile(file_name):
+        bfile_name = file_name + '.{:%Y-%m-%dT%H.%M.%S}'.format(datetime.datetime.now())
+        print('file backed up to ' + bfile_name)
+        shutil.move(file_name, bfile_name)
 
 if __name__ == '__main__':
     if not args.no_tor:
@@ -463,14 +490,25 @@ if __name__ == '__main__':
         # load csv file with attribute descriptions
         attrlist = load_attrlist()
         fieldnames_data = ('HOUSE_ID','ATTR_NAME','FOUND_NAME','ED_DIST','VALUE')
+        fieldnames_type = ('TEXT','TEXT','TEXT','INTEGER','TEXT')
+        fieldnames_phld = ', '.join([ ':' + s for s in fieldnames_data]) #placeholder for sqlite
 
     # create an output file housedata.csv with the requested field names
     if args.parser != 'none':
         f_housedata_name = args.output_name   #data/housedata.csv
-        f_housedata = open(f_housedata_name,'wb')
-        fields_str = ','.join(fieldnames_data)
-        f_housedata.write(fields_str+'\n')
-        f_housedata.close()
+        if args.outputmode == 'overwrite':
+            out_of_the_way(f_housedata_name)
+        if args.outputformat == 'csv':
+            if args.outputmode == 'overwrite':
+                f_housedata = open(f_housedata_name,'wb')
+                fields_str = ','.join(fieldnames_data)
+                f_housedata.write(fields_str+'\n')
+                f_housedata.close()
+        else: # sqlite format for attrlist parser
+            conn = sqlite3.connect(f_housedata_name)
+            sqcur = conn.cursor()
+            sqcur.execute('create table if not exists attrvals(' + ', '.join([ s+' '+t for s,t in zip(fieldnames_data, fieldnames_type)]) + ', primary key(HOUSE_ID, ATTR_NAME) )')
+            conn.commit()
 
     f_housedata = open(f_housedata_name,'ab')
 
@@ -499,9 +537,7 @@ if __name__ == '__main__':
                     # save IDs in a file making a copy of an existing file
                     print('saving house_ids to ', house_ids_fname)
                     if os.path.isfile(house_ids_fname):
-                        bfile_name = house_ids_fname + '.{:%Y-%m-%dT%H.%M.%S}'.format(datetime.datetime.now())
-                        print('old building list backed up to ' + bfile_name)
-                        shutil.move(house_ids_fname, bfile_name)
+                        out_of_the_way(house_ids_fname)
                     f_house_ids = open(house_ids_fname, 'wb')
                     pickle.dump(houses_ids, f_house_ids)
                     f_house_ids.close()
