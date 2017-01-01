@@ -1,0 +1,5 @@
+24/dec/2016
++ add meters (thanks doctorzeb8)
++ support FIAS code (0 - not in FIAS, 1 - in FIAS)
++ TOR based ATD grabber
+* Fix saving originals with ATD grabber 
