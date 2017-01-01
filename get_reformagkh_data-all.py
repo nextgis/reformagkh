@@ -137,6 +137,8 @@ def get_content(link):
             print('Session time out')
             sys.exit()
 
+    print 'Page ' + link + ' retrieved at %s' % datetime.datetime.now()
+
     return res
 
 def urlopen_house(link,id):
@@ -531,7 +533,7 @@ if __name__ == '__main__':
 
     for reg in regs:
         if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
-                print(reg[0].decode('utf8') + ', ' + reg[1].decode('utf8') + ', ' + reg[2].decode('utf8'))
+                print reg[0] + ', ' + reg[1] + ', ' + reg[2]
                 #get list of houses
                 if args.cache_only:
                     # load saved ids
