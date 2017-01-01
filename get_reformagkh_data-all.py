@@ -149,6 +149,7 @@ def urlopen_house(link,id):
         f = open(args.originals_folder + id + ".html","wb")
         f.write(res.encode('utf-8'))  #writing in utf-8 causes exceptions.UnicodeDecodeError
         f.close()
+        print 'Page', link, 'saved in', args.originals_folder + id + '.html size=', os.path.getsize(args.originals_folder + id + ".html")
 
     return res
 
