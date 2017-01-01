@@ -72,6 +72,8 @@ import re
 import editdistance
 import sqlite3
 #from pytest import attrlist
+import os
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
@@ -467,11 +469,14 @@ def out_of_the_way(file_name):
 
 if __name__ == '__main__':
     if not args.no_tor:
+        print 'Establishing tor connection to socks5://127.0.0.1:9150...'
         session = requesocks.session()
         session.proxies = {'http':  'socks5://127.0.0.1:9150',
                            'https': 'socks5://127.0.0.1:9150'}
         try:
+            print 'Tor connection established, testing google.com'
             session.get('http://google.com').text
+            print 'Connected to Tor network!'
         except:
             print('Tor isn\'t running or not configured properly')
             sys.exit(1)
