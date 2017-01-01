@@ -145,7 +145,7 @@ def urlopen_house(link,id):
     res = get_content(link)
     if args.originals_folder:
         f = open(args.originals_folder + id + ".html","wb")
-        f.write(res)#.encode('utf-8'))  #writing in utf-8 causes exceptions.UnicodeDecodeError
+        f.write(res.encode('utf-8'))  #writing in utf-8 causes exceptions.UnicodeDecodeError
         f.close()
 
     return res
@@ -474,8 +474,8 @@ if __name__ == '__main__':
         session.proxies = {'http':  'socks5://127.0.0.1:9150',
                            'https': 'socks5://127.0.0.1:9150'}
         try:
-            print 'Tor connection established, testing google.com'
-            session.get('http://google.com').text
+            print 'Tor connection established, testing duckduckgo.com'
+            session.get('http://duckduckgo.com').text
             print 'Connected to Tor network!'
         except:
             print('Tor isn\'t running or not configured properly')
