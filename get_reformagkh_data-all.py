@@ -72,6 +72,7 @@ import datetime
 import re
 import editdistance
 import sqlite3
+import time
 #from pytest import attrlist
 
 # some installs need this
@@ -129,26 +130,27 @@ def get_content(link):
     # this function should never be called if no_cache is specified
     assert not args.cache_only
 
+    start_time = time.time()
     if args.no_tor:
         print('Directly retrieving ' + link)
-        live_url = urllib2.urlopen(link)
+        live_url = urllib2.urlopen(link)#, timeout=300)
         res = live_url.read()
     else:
-        print('TOR Retrieving ' + link)
         for i in range(1,numtries+1):
             try:
-                res = session.get(link).text
+                print 'TOR Retrieving', link, 'attempt', i, 'of', numtries
+                res = session.get(link).text # need timeout=300 here but it does not work really
             except:
                 time.sleep(3)
                 res = ''
             else:
                 break
 
-        if res == '':
-            print('Session time out')
-            sys.exit()
-
-    print 'Page ' + link + ' retrieved at %s' % datetime.datetime.now()
+    elapsed_time = time.time() - start_time
+    if res:
+        print 'Page', link, ' retrieved at %s' % datetime.datetime.now(), 'in', elapsed_time, 's'
+    else:
+        print 'Failed to retrieve', link, 'after', elapsed_time, 's'
 
     return res
 
