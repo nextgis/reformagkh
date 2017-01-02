@@ -25,6 +25,7 @@
 #           --outputformat FORMAT specify output format
 #               csv -- CSV (default)
 #               sqlite -- sqlite database (only implemented for attrlist parser)
+#           --reload_list reload list of the buildings from the site even if cache file exixts
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
 #      python get_reformagkh_data-all.py 2291922 housedata.csv -of omsk --no_tor --cache_only
@@ -72,8 +73,11 @@ import re
 import editdistance
 import sqlite3
 #from pytest import attrlist
+
+# some installs need this
 import os
 import sys
+import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
@@ -85,6 +89,8 @@ parser.add_argument('--cache_only', help='Do not connect to the web site, use on
 parser.add_argument('--parser', help='Parser to use', default='original', choices=['original', 'attrlist', 'none'])
 parser.add_argument('--outputformat', help='output format', default='csv', choices=['csv', 'sqlite'])
 parser.add_argument('--outputmode', help='output mode', default='append', choices=['append', 'overwrite'])
+parser.add_argument('--reload_list', help='reload list of the buildings even if cache file exixts', action="store_true")
+parser.add_argument('--shuffle', help='shuffle list of the buildings', action="store_true")
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\'
 
@@ -95,6 +101,9 @@ if args.originals_folder:
 if args.cache_only:
     if not args.originals_folder:
         print 'cache-only requested but originals folder was not specified, quitting...'
+        sys.exit(-1)
+    if args.reload_list:
+        print '--cache_only and --reload_list cannot be used together'
         sys.exit(-1)
     if args.no_tor:
         print 'with cache_only no_tor has no effect'
@@ -580,7 +589,6 @@ if __name__ == '__main__':
 
     regs = get_data_links(args.id)
 
-
     for reg in regs:
         if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
             print 'Region: ', reg[0], ',', reg[1], ',', reg[2]
@@ -589,24 +597,23 @@ if __name__ == '__main__':
             print 'Effective tid:', tid
             house_ids_fname = args.originals_folder + dirsep + 'house_ids-' + str(tid) + '.pickle'
 
-            if args.cache_only:
-                # load saved ids
+            if args.reload_list and os.path.isfile(house_ids_fname):
+                out_of_the_way(house_ids_fname)
+
+            if os.path.isfile(house_ids_fname):
                 print 'Loading cached house_ids from ', house_ids_fname
-                if os.path.isfile(house_ids_fname):
-                    f_house_ids = open(house_ids_fname, 'rb')
-                    houses_ids = pickle.load(f_house_ids)
-                    f_house_ids.close()
-                else:
-                    print 'No cached house_ids for requested tid', house_ids_fname
-                    sys.exit(3)
+                f_house_ids = open(house_ids_fname, 'rb')
+                houses_ids = pickle.load(f_house_ids)
+                f_house_ids.close()
+            elif args.cache_only:
+                print 'No cached house_ids for requested tid', house_ids_fname
+                sys.exit(3)
             else:
                 print 'Retrieve house ids from the site'
                 houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + tid)
 
                 # save IDs in a file making a copy of an existing file
                 print 'Saving house_ids to ', house_ids_fname
-                if os.path.isfile(house_ids_fname):
-                    out_of_the_way(house_ids_fname)
                 f_house_ids = open(house_ids_fname, 'wb')
                 pickle.dump(houses_ids, f_house_ids)
                 f_house_ids.close()
@@ -614,6 +621,8 @@ if __name__ == '__main__':
             #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
             #pbar.maxval = len(houses_ids)
 
+            if args.shuffle:
+                random.shuffle(houses_ids)
             i = 0
             for house_id in houses_ids:
                 i = i+1
