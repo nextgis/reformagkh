@@ -98,6 +98,8 @@ if args.cache_only:
         sys.exit(-1)
     if args.no_tor:
         print 'with cache_only no_tor has no effect'
+    else:
+        args.no_tor = True
 if args.outputformat == 'sqlite' and args.parser == 'origina':
         print 'sqlite outputformat works only for attrlist parser'
         sys.exit(-1)
@@ -236,44 +238,92 @@ def check_captcha(soup):
     else:
         return False
 
-def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
-    #process house data to get main attributes
+def mk_cache_file_name(house_id):
+    return args.originals_folder + '/' + house_id + ".html"
+
+def invalidate_cache(house_id):
+    cache_fname = mk_cache_file_name(house_id)
+    if os.path.isfile(cache_fname):
+        os.remove(cache_fname)
+
+def load_bldg_page(link,house_id):
+    """Loads HTML page for a spceified building either from the web or from cache"""
 
     if args.originals_folder:
-        cache_fname = args.originals_folder + '/' + house_id + ".html"
+        cache_fname = mk_cache_file_name(house_id)
+        bldg_link = link + 'view/' + house_id
         if not os.path.isfile(cache_fname):
             if args.cache_only:
-                print('Cache file ' + cache_fname + ' does not exist, skipping');
+                print 'Cache file', cache_fname, 'does not exist, skipping...'
                 res = False
             else:
                 try:
-                    res = urlopen_house(link + 'view/' + house_id,house_id)
+                    res = urlopen_house(bldg_link, house_id)
                 except:
-                    print "Error with " + link + 'view/' + house_id + ": ", sys.exc_info()[0]
-                    f_errors.write(link + 'view/' + house_id + '\n')
+                    print "Error retrieving", bldg_link, ": ", sys.exc_info()[0]
+                    f_errors.write(bldg_link + '\n')
                     res = False
         else:
-            res = open(args.originals_folder + '/' + house_id + ".html",'rb').read()
+            res = open(cache_fname,'rb').read()
+            print house_id, ': loaded from cache file', cache_fname
     else:
-       try:
-           res = urlopen_house(link + 'view/' + house_id,house_id)
-       except:
-           f_errors.write(link + 'view/' + house_id + '\n')
-           res = False
+        try:
+            res = urlopen_house(bldg_link, house_id)
+        except:
+            f_errors.write(bldg_link + '\n')
+            res = False
 
-    if res != False and args.parser != 'none':
+    return res
+
+def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
+    """Tries hard to retrieve the page content one way or another,
+    then checks for errors, changes relay if needed, etc."""
+
+    captcha_count = 0
+    while True:
+        res = load_bldg_page(link,house_id)
+
+        if res == False:
+            return False
+
         soup = BeautifulSoup(''.join(res),'html.parser')
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
 
-        if len(soup) > 0 and 'Time-out' not in soup.text and '502 Bad Gateway' not in soup.text: #u'Ошибка' not in soup.text
-            if args.parser == 'attrlist':
-                return parse_house_page_attrlist(soup)
-            else:
-                return parse_house_page_original(soup)
-        else:
+        if len(soup) == 0:
+            print house_id, ': 0 size html'
             return False
-    else:
-        return True
+
+        if 'Time-out' in soup.text:
+            print house_id, ': Time out reported by server'
+            return False
+        if '502 Bad Gateway' in soup.text:
+            print house_id, ': Bad gateway'
+            return False
+        #if u'Ошибка' in soup.text:
+        #    print house_id, ': unspecified error from the server'
+        #    return False
+
+        if check_captcha(soup):
+            captcha_count += 1
+            if args.cache_only:
+                print house_id, ': captcha page in cache but --no_cache set, skipping'
+                return False
+            elif args.no_tor:
+                print house_id, ': captcha received, running without tor, quitting...'
+                sys.exit(2)
+            else:
+                print house_id, ': captcha received, invalidating cache, requesting new proxy, attempt #', captcha_count
+                invalidate_cache(house_id)
+                change_proxy()
+                continue
+
+        if args.parser == 'original':
+            return parse_house_page_original(soup)
+        elif args.parser == 'attrlist':
+            return parse_house_page_attrlist(soup)
+        else:
+            print house_id, ': parsing skipped'
+            return True
 
 def parse_house_page_original(soup):
     address = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
@@ -530,48 +580,50 @@ if __name__ == '__main__':
 
     regs = get_data_links(args.id)
 
-    house_ids_fname = args.originals_folder + dirsep + 'house_ids.pickle'
 
     for reg in regs:
         if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
-                print reg[0] + ', ' + reg[1] + ', ' + reg[2]
-                #get list of houses
-                if args.cache_only:
-                    # load saved ids
-                    print 'Loading cached house_ids from ', house_ids_fname
+            print 'Region: ', reg[0], ',', reg[1], ',', reg[2]
+            # get list of houses
+            tid = reg[5] if reg[5] else reg[4]
+            print 'Effective tid:', tid
+            house_ids_fname = args.originals_folder + dirsep + 'house_ids-' + str(tid) + '.pickle'
+
+            if args.cache_only:
+                # load saved ids
+                print 'Loading cached house_ids from ', house_ids_fname
+                if os.path.isfile(house_ids_fname):
                     f_house_ids = open(house_ids_fname, 'rb')
                     houses_ids = pickle.load(f_house_ids)
                     f_house_ids.close()
                 else:
-                    print 'retrieve house ids from the site'
-                    if reg[5] == '':
-                        houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[4])
-                    else:
-                        houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
-                    # save IDs in a file making a copy of an existing file
-                    print 'saving house_ids to ', house_ids_fname
-                    if os.path.isfile(house_ids_fname):
-                        out_of_the_way(house_ids_fname)
-                    f_house_ids = open(house_ids_fname, 'wb')
-                    pickle.dump(houses_ids, f_house_ids)
-                    f_house_ids.close()
+                    print 'No cached house_ids for requested tid', house_ids_fname
+                    sys.exit(3)
+            else:
+                print 'Retrieve house ids from the site'
+                houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + tid)
 
-                #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
-                #pbar.maxval = len(houses_ids)
+                # save IDs in a file making a copy of an existing file
+                print 'Saving house_ids to ', house_ids_fname
+                if os.path.isfile(house_ids_fname):
+                    out_of_the_way(house_ids_fname)
+                f_house_ids = open(house_ids_fname, 'wb')
+                pickle.dump(houses_ids, f_house_ids)
+                f_house_ids.close()
 
-                i = 0
-                for house_id in houses_ids:
-                    i = i+1
-                    print i, '\tProcessing house_id=', house_id
-                    res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
-                    if not args.no_tor and res == False:
-                        change_proxy()
-                        res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
-                    if res == False:
-                        print 'Failed to retrieve building data for id=', house_id
-                    #pbar.update(pbar.currval+1)
-                print 'Processed', i, 'house_ids'
-                #pbar.finish()
+            #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
+            #pbar.maxval = len(houses_ids)
+
+            i = 0
+            for house_id in houses_ids:
+                i = i+1
+                print i, '\tProcessing house_id', house_id
+                res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
+                if res == False:
+                    print 'Building data was not retrieved for id=', house_id
+                #pbar.update(pbar.currval+1)
+            print 'Processed', i, 'house_ids'
+            #pbar.finish()
 
     if args.parser == 'original':
         f_housedata.close()
