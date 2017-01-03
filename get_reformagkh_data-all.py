@@ -92,6 +92,7 @@ parser.add_argument('--outputformat', help='output format', default='csv', choic
 parser.add_argument('--outputmode', help='output mode', default='append', choices=['append', 'overwrite'])
 parser.add_argument('--reload_list', help='reload list of the buildings even if cache file exixts', action="store_true")
 parser.add_argument('--shuffle', help='shuffle list of the buildings', action="store_true")
+parser.add_argument('--fast_check', help='do not check for captcha, etc. in cahced files', action="store_true")
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\'
 
@@ -115,6 +116,9 @@ if args.outputformat == 'sqlite' and args.parser == 'origina':
         sys.exit(-1)
 if args.parser == 'none' and args.outputformat != 'csv':
     print 'outputformat has no effect when parser=none'
+if args.fast_check and args.parser != 'none':
+    print 'fast_check only allowed when parser=none'
+    sys.exit(5)
 
 def console_out(text):
     #write httplib error messages to console
@@ -289,6 +293,10 @@ def load_bldg_page(link,house_id):
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     """Tries hard to retrieve the page content one way or another,
     then checks for errors, changes relay if needed, etc."""
+
+    if args.fast_check and os.path.exists(mk_cache_file_name(house_id)):
+        print house_id, 'in cache, checks skipped'
+        return True
 
     captcha_count = 0
     while True:
@@ -623,6 +631,7 @@ if __name__ == '__main__':
             #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
             #pbar.maxval = len(houses_ids)
 
+            print len(houses_ids),'house_ids will be processed'
             if args.shuffle:
                 random.shuffle(houses_ids)
             i = 0
