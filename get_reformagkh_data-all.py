@@ -93,6 +93,7 @@ parser.add_argument('--outputmode', help='output mode', default='append', choice
 parser.add_argument('--reload_list', help='reload list of the buildings even if cache file exixts', action="store_true")
 parser.add_argument('--shuffle', help='shuffle list of the buildings', action="store_true")
 parser.add_argument('--fast_check', help='do not check for captcha, etc. in cahced files', action="store_true")
+parser.add_argument('--attrlist', help='The list of attributes with selectors to be extracted from HTML', default='attrlist.tsv')
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\'
 
@@ -111,7 +112,7 @@ if args.cache_only:
         print 'with cache_only no_tor has no effect'
     else:
         args.no_tor = True
-if args.outputformat == 'sqlite' and args.parser == 'origina':
+if args.outputformat == 'sqlite' and args.parser == 'original':
         print 'sqlite outputformat works only for attrlist parser'
         sys.exit(-1)
 if args.parser == 'none' and args.outputformat != 'csv':
@@ -510,8 +511,7 @@ def parse_house_page_attrlist(soup):
 def load_attrlist():
     """Loads the list of attributes and their id string from a CSV file."""
 
-    attrlist_fname = "attributes.tsv"
-    attrlist_fh = open(attrlist_fname, 'rU')
+    attrlist_fh = open(args.attrlist, 'rU')
     attrlist_reader = csv.reader(attrlist_fh, delimiter='\t')
     attrlist = []
     ignorecols = [] # columns to be ignored
