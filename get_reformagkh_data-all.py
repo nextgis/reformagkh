@@ -18,13 +18,13 @@
 #           -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 #           --cache_only only parse cache, do not touch the web site
 #           --no_tor do not use tor, connect to the site directly
-#           --parser PARSER specify which parser to use:
-#               none -- do not use any parser, only read/download pages
-#               original -- use parser from the original project (limited set of variables, default)
-#               attrlist -- use parser and attribute list loaded from tsv file
+#           --extractor EXTRACTOR specify which data extractor to use:
+#               none -- do not use any data extractor, only read/download pages
+#               original -- use data extractor from the original project (limited set of variables, default)
+#               attrlist -- use data extractor and attribute list loaded from tsv file
 #           --outputformat FORMAT specify output format
 #               csv -- CSV (default)
-#               sqlite -- sqlite database (only implemented for attrlist parser)
+#               sqlite -- sqlite database (only implemented for attrlist data extractor)
 #           --reload_list reload list of the buildings from the site even if cache file exixts
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
@@ -82,18 +82,20 @@ import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
-parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
-parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all, will write over previously downloaded files.')
+parser.add_argument('output_name', help='Where to store the results (path to output file)')
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 parser.add_argument('--no_tor', help='Do not use tor connection', action="store_true")
 parser.add_argument('--cache_only', help='Do not connect to the web site, use only cached entries', action="store_true")
-parser.add_argument('--parser', help='Parser to use', default='original', choices=['original', 'attrlist', 'none'])
+parser.add_argument('--extractor', help='Data extractor to use', default='original', choices=['original', 'attrlist', 'none'])
+parser.add_argument('--parser', help='HTML Parser to use', default='html.parser', choices=['html.parser', 'lxml'])
 parser.add_argument('--outputformat', help='output format', default='csv', choices=['csv', 'sqlite'])
 parser.add_argument('--outputmode', help='output mode', default='append', choices=['append', 'overwrite'])
 parser.add_argument('--reload_list', help='reload list of the buildings even if cache file exixts', action="store_true")
 parser.add_argument('--shuffle', help='shuffle list of the buildings', action="store_true")
 parser.add_argument('--fast_check', help='do not check for captcha, etc. in cahced files', action="store_true")
 parser.add_argument('--attrlist', help='The list of attributes with selectors to be extracted from HTML', default='attrlist.tsv')
+#parser.add_argument('--socks_port', help='Tor sock port to connect to', default='9150')
+#parser.add_argument('--torctl_port', help='Tor control port to connect to', default='9151')
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\'
 
@@ -112,13 +114,13 @@ if args.cache_only:
         print 'with cache_only no_tor has no effect'
     else:
         args.no_tor = True
-if args.outputformat == 'sqlite' and args.parser == 'original':
-        print 'sqlite outputformat works only for attrlist parser'
+if args.outputformat == 'sqlite' and args.extractor == 'original':
+        print 'sqlite outputformat works only for attrlist data extractor'
         sys.exit(-1)
-if args.parser == 'none' and args.outputformat != 'csv':
-    print 'outputformat has no effect when parser=none'
-if args.fast_check and args.parser != 'none':
-    print 'fast_check only allowed when parser=none'
+if args.extractor == 'none' and args.outputformat != 'csv':
+    print 'outputformat has no effect when extractor=none'
+if args.fast_check and args.extractor != 'none':
+    print 'fast_check only allowed when extractor=none'
     sys.exit(5)
 
 def console_out(text):
@@ -191,12 +193,12 @@ def extract_subvalue(tr,num):
 def check_size(link):
 
     res = get_content(link)
-    soup = BeautifulSoup(''.join(res), 'html.parser')
+    soup = BeautifulSoup(''.join(res), args.parser)
     captcha = check_captcha(soup)
 
     while captcha == True:
         res = get_content(link)
-        soup = BeautifulSoup(''.join(res), 'html.parser')
+        soup = BeautifulSoup(''.join(res), args.parser)
         captcha = check_captcha(soup)
         change_proxy()
 
@@ -215,7 +217,7 @@ def get_house_list(link):
     houses_ids = []
     for page in range(1,pages+1):
         res = get_content(link + '&page=' + str(page) + '&limit=10000')
-        soup = BeautifulSoup(''.join(res), 'html.parser')
+        soup = BeautifulSoup(''.join(res), args.parser)
         captcha = check_captcha(soup)
 
         while captcha == True:
@@ -223,7 +225,7 @@ def get_house_list(link):
                 print "Captcha received: the limit of connections was likely exceeded, quitting"
                 sys.exit(-1)
             res = get_content(link + '&page=' + str(page) + '&limit=10000')
-            soup = BeautifulSoup(''.join(res), 'html.parser')
+            soup = BeautifulSoup(''.join(res), args.parser)
             captcha = check_captcha(soup)
             change_proxy()
 
@@ -306,7 +308,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         if res == False:
             return False
 
-        soup = BeautifulSoup(''.join(res),'html.parser')
+        soup = BeautifulSoup(''.join(res),args.parser)
         f_ids.write(link + 'view/' + house_id + ',' + house_id + '\n')
 
         if len(soup) == 0:
@@ -337,9 +339,9 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                 change_proxy()
                 continue
 
-        if args.parser == 'original':
+        if args.extractor == 'original':
             return parse_house_page_original(soup)
-        elif args.parser == 'attrlist':
+        elif args.extractor == 'attrlist':
             return parse_house_page_attrlist(soup)
         else:
             print house_id, ': parsing skipped'
@@ -473,6 +475,8 @@ def parse_house_page_attrlist(soup):
             attr_name = '->'.join([ cur_sect[attr] for attr in sect_attrs if cur_sect[attr] ])
             fixed_selector_code_name = re.sub('nth-child', 'nth-of-type', row['Selector Code for Name']) # this is needed because bs does not support nth-child
             fixed_selector_code_value = re.sub('nth-child', 'nth-of-type', row['Selector Code for Value'])
+            #fixed_selector_code_name = row['Selector Code for Name']
+            #fixed_selector_code_value = row['Selector Code for Value']
             #print attr_name, '==>', row['Selector Code for Name'], '==>', fixed_selector_code_name
 
             result_name = soup.select(fixed_selector_code_name)
@@ -564,12 +568,12 @@ if __name__ == '__main__':
     f_errors = open('errors.txt','wb')
     f_ids = open('ids.txt','wb')
 
-    # parser intialization
-    if args.parser == 'original':
+    # data extractor intialization
+    if args.extractor == 'original':
         #init csv for housedata
         fieldnames_data = ('LAT','LON','HOUSE_ID','ADDRESS','YEAR','LASTUPDATE','SERVICEDATE_START','SERIE','HOUSE_TYPE','CAPFOND','MGMT_COMPANY','MGMT_COMPANY_LINK','AVAR','LEVELS_MAX','LEVELS_MIN','DOORS','ROOM_COUNT','ROOM_COUNT_LIVE','ROOM_COUNT_NONLIVE','AREA','AREA_LIVE','AREA_NONLIVE','AREA_GEN','AREA_LAND','AREA_PARK','CADNO','ENERGY_CLASS','BLAG_PLAYGROUND','BLAG_SPORT','BLAG_OTHER','OTHER')
 
-    elif args.parser == 'attrlist':
+    elif args.extractor == 'attrlist':
         # load csv file with attribute descriptions
         attrlist = load_attrlist()
         fieldnames_data = ('HOUSE_ID','ATTR_NAME','FOUND_NAME','ED_DIST','VALUE')
@@ -577,8 +581,8 @@ if __name__ == '__main__':
         fieldnames_phld = ', '.join([ ':' + s for s in fieldnames_data]) #placeholder for sqlite
 
     # create an output file housedata.csv with the requested field names
-    if args.parser != 'none':
-        f_housedata_name = args.output_name   #data/housedata.csv
+    f_housedata_name = args.output_name   #data/housedata.csv
+    if args.extractor != 'none':
         if args.outputmode == 'overwrite':
             out_of_the_way(f_housedata_name)
         if args.outputformat == 'csv':
@@ -587,15 +591,15 @@ if __name__ == '__main__':
                 fields_str = ','.join(fieldnames_data)
                 f_housedata.write(fields_str+'\n')
                 f_housedata.close()
-        else: # sqlite format for attrlist parser
+        else: # sqlite format for attrlist data extractor
             conn = sqlite3.connect(f_housedata_name)
             sqcur = conn.cursor()
             sqcur.execute('create table if not exists attrvals(' + ', '.join([ s+' '+t for s,t in zip(fieldnames_data, fieldnames_type)]) + ', primary key(HOUSE_ID, ATTR_NAME) )')
             conn.commit()
 
-    if args.parser == 'csv':
-        f_housedata = open(f_housedata_name,'ab')
-        csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
+        if args.outputformat == 'csv':
+            f_housedata = open(f_housedata_name,'ab')
+            csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
 
     regs = get_data_links(args.id)
 
@@ -645,7 +649,7 @@ if __name__ == '__main__':
             print 'Processed', i, 'house_ids'
             #pbar.finish()
 
-    if args.parser == 'original':
+    if args.extractor == 'original':
         f_housedata.close()
     f_errors.close()
     f_ids.close()
