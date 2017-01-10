@@ -81,7 +81,7 @@ import sys
 import random
 
 parser = argparse.ArgumentParser()
-parser.add_argument('id', help='Region ID')
+parser.add_argument('id', help='Region (default) or house ID')
 parser.add_argument('output_name', help='Where to store the results (path to output file)')
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 parser.add_argument('--no_tor', help='Do not use tor connection', action="store_true")
@@ -94,6 +94,7 @@ parser.add_argument('--reload_list', help='reload list of the buildings even if 
 parser.add_argument('--shuffle', help='shuffle list of the buildings', action="store_true")
 parser.add_argument('--fast_check', help='do not check for captcha, etc. in cahced files', action="store_true")
 parser.add_argument('--attrlist', help='The list of attributes with selectors to be extracted from HTML', default='attrlist.tsv')
+parser.add_argument('--houseid', help='provided id will be understood as house_id (single page will be processed)', action="store_true")
 #parser.add_argument('--socks_port', help='Tor sock port to connect to', default='9150')
 #parser.add_argument('--torctl_port', help='Tor control port to connect to', default='9151')
 args = parser.parse_args()
@@ -203,6 +204,7 @@ def check_size(link):
         change_proxy()
 
     divs = soup.findAll('div', { 'class' : 'clearfix' })
+    # TODO: check if this is a right page
     table = divs[1].find('table', { 'class' : 'col_list' })
     size = table.findAll('td')[3].text.replace(u' ед.','').replace(' ','')
 
@@ -265,7 +267,8 @@ def invalidate_cache(house_id):
         os.remove(cache_fname)
 
 def load_bldg_page(link,house_id):
-    """Loads HTML page for a spceified building either from the web or from cache"""
+    """Loads HTML page for a spceified building either from the web or from cache
+    returns the page, False on failure, and the source of the page (web, file, None for failure)"""
 
     if args.originals_folder:
         cache_fname = mk_cache_file_name(house_id)
@@ -274,7 +277,9 @@ def load_bldg_page(link,house_id):
             if args.cache_only:
                 print 'Cache file', cache_fname, 'does not exist, skipping...'
                 res = False
+                src = None
             else:
+                src = 'web'
                 try:
                     res = urlopen_house(bldg_link, house_id)
                 except:
@@ -282,16 +287,18 @@ def load_bldg_page(link,house_id):
                     f_errors.write(bldg_link + '\n')
                     res = False
         else:
+            src = 'file'
             res = open(cache_fname,'rb').read()
             print house_id, ': loaded from cache file', cache_fname
     else:
         try:
+            src = 'web'
             res = urlopen_house(bldg_link, house_id)
         except:
             f_errors.write(bldg_link + '\n')
             res = False
 
-    return res
+    return res, src
 
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
     """Tries hard to retrieve the page content one way or another,
@@ -303,7 +310,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
 
     captcha_count = 0
     while True:
-        res = load_bldg_page(link,house_id)
+        res, src = load_bldg_page(link,house_id)
 
         if res == False:
             return False
@@ -313,7 +320,11 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
 
         if len(soup) == 0:
             print house_id, ': 0 size html'
-            return False
+            if src == 'web':
+                return False
+            else:
+                invalidate_cache(house_id)
+                continue
 
         if 'Time-out' in soup.text:
             print house_id, ': Time out reported by server'
@@ -321,6 +332,18 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         if '502 Bad Gateway' in soup.text:
             print house_id, ': Bad gateway'
             return False
+        if u'Ð¢ÐµÑÐ½Ð¸ÑÐµÑÐºÐ¸Ðµ ÑÐ°Ð±Ð¾ÑÑ' in soup.text:
+            print house_id, ': maintenance'
+            if src == 'web':
+                print 'The site is in the maintenance mode, quiting...'
+                sys.exit(-1)
+            else:
+                if args.cache_only:
+                    return False
+                else:
+                    invalidate_cache(house_id)
+                    continue
+
         #if u'Ошибка' in soup.text:
         #    print house_id, ': unspecified error from the server'
         #    return False
@@ -581,8 +604,8 @@ if __name__ == '__main__':
         fieldnames_phld = ', '.join([ ':' + s for s in fieldnames_data]) #placeholder for sqlite
 
     # create an output file housedata.csv with the requested field names
-    f_housedata_name = args.output_name   #data/housedata.csv
     if args.extractor != 'none':
+        f_housedata_name = args.output_name   #data/housedata.csv
         if args.outputmode == 'overwrite':
             out_of_the_way(f_housedata_name)
         if args.outputformat == 'csv':
@@ -601,53 +624,58 @@ if __name__ == '__main__':
             f_housedata = open(f_housedata_name,'ab')
             csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
 
-    regs = get_data_links(args.id)
+    if (args.houseid):
+        res = get_housedata(house_link,str(args.id),None,None,None,None)
+        if res == False:
+            print 'Building data was not retrieved for id=', args.id
+    else:
+        regs = get_data_links(args.id)
 
-    for reg in regs:
-        if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
-            print 'Region: ', reg[0], ',', reg[1], ',', reg[2]
-            # get list of houses
-            tid = reg[5] if reg[5] else reg[4]
-            print 'Effective tid:', tid
-            house_ids_fname = args.originals_folder + dirsep + 'house_ids-' + str(tid) + '.pickle'
+        for reg in regs:
+            if reg[5] != '' or len([i for i in regs if reg[4] in i]) == 1: #can't use Counter with cnt(elem[4] for elem in regs)[reg[4]] because of the progressbar
+                print 'Region: ', reg[0], ',', reg[1], ',', reg[2]
+                # get list of houses
+                tid = reg[5] if reg[5] else reg[4]
+                print 'Effective tid:', tid
+                house_ids_fname = args.originals_folder + dirsep + 'house_ids-' + str(tid) + '.pickle'
 
-            if args.reload_list and os.path.isfile(house_ids_fname):
-                out_of_the_way(house_ids_fname)
+                if args.reload_list and os.path.isfile(house_ids_fname):
+                    out_of_the_way(house_ids_fname)
 
-            if os.path.isfile(house_ids_fname):
-                print 'Loading cached house_ids from ', house_ids_fname
-                f_house_ids = open(house_ids_fname, 'rb')
-                houses_ids = pickle.load(f_house_ids)
-                f_house_ids.close()
-            elif args.cache_only:
-                print 'No cached house_ids for requested tid', house_ids_fname
-                sys.exit(3)
-            else:
-                print 'Retrieve house ids from the site'
-                houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + tid)
+                if os.path.isfile(house_ids_fname):
+                    print 'Loading cached house_ids from ', house_ids_fname
+                    f_house_ids = open(house_ids_fname, 'rb')
+                    houses_ids = pickle.load(f_house_ids)
+                    f_house_ids.close()
+                elif args.cache_only:
+                    print 'No cached house_ids for requested tid', house_ids_fname
+                    sys.exit(3)
+                else:
+                    print 'Retrieve house ids from the site'
+                    houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + tid)
 
-                # save IDs in a file making a copy of an existing file
-                print 'Saving house_ids to ', house_ids_fname
-                f_house_ids = open(house_ids_fname, 'wb')
-                pickle.dump(houses_ids, f_house_ids)
-                f_house_ids.close()
+                    # save IDs in a file making a copy of an existing file
+                    print 'Saving house_ids to ', house_ids_fname
+                    f_house_ids = open(house_ids_fname, 'wb')
+                    pickle.dump(houses_ids, f_house_ids)
+                    f_house_ids.close()
 
-            #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
-            #pbar.maxval = len(houses_ids)
+                #pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
+                #pbar.maxval = len(houses_ids)
 
-            print len(houses_ids),'house_ids will be processed'
-            if args.shuffle:
-                random.shuffle(houses_ids)
-            i = 0
-            for house_id in houses_ids:
-                i = i+1
-                print i, '\tProcessing house_id', house_id
-                res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
-                if res == False:
-                    print 'Building data was not retrieved for id=', house_id
-                #pbar.update(pbar.currval+1)
-            print 'Processed', i, 'house_ids'
-            #pbar.finish()
+                print len(houses_ids),'house_ids will be processed'
+                if args.shuffle:
+                    random.shuffle(houses_ids)
+                i = 0
+                for house_id in houses_ids:
+                    i = i+1
+                    print i, '\tProcessing house_id', house_id
+                    res = get_housedata(house_link,str(house_id),reg[0],reg[3],reg[1],reg[4])
+                    if res == False:
+                        print 'Building data was not retrieved for id=', house_id
+                    #pbar.update(pbar.currval+1)
+                print 'Processed', i, 'house_ids'
+                #pbar.finish()
 
     if args.extractor == 'original':
         f_housedata.close()
