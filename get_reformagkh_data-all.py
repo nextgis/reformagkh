@@ -494,10 +494,7 @@ def write_house_attribute(result_set):
 def parse_house_page_attrlist(soup):
     """Parses a house page using attrlist information"""
 
-    # create output variable name from the section names
-    sect_attrs = ['section-rus', 'subsection-rus', 'attribute-rus', 'subattribute-rus', 'subsubattribute-rus']
-    cur_sect = dict.fromkeys(sect_attrs)
-
+    # lat lon extractions
     latlon_re = r'center: \[(\d+\.\d+),\s*(\d+\.\d+)\],'
     latlon_match = re.search(latlon_re, soup.findAll('script')[11].text)
     if not latlon_match:
@@ -510,6 +507,10 @@ def parse_house_page_attrlist(soup):
 
     write_house_attribute(dict(HOUSE_ID=house_id,ATTR_NAME='lat',FOUND_NAME='lat',ED_DIST=0,VALUE=lat))
     write_house_attribute(dict(HOUSE_ID=house_id,ATTR_NAME='lon',FOUND_NAME='lon',ED_DIST=0,VALUE=lon))
+
+    # create output variable name from the section names
+    sect_attrs = ['section-rus', 'subsection-rus', 'attribute-rus', 'subattribute-rus', 'subsubattribute-rus']
+    cur_sect = dict.fromkeys(sect_attrs)
 
     for row in attrlist:
 
