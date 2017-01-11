@@ -367,7 +367,7 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
         elif args.extractor == 'attrlist':
             return parse_house_page_attrlist(soup)
         else:
-            print house_id, ': parsing skipped'
+            print house_id, ': data extraction skipped'
             return True
 
 def parse_house_page_original(soup):
