@@ -76,7 +76,7 @@ import time
 #from pytest import attrlist
 
 # some installs need this
-import os
+import os, glob
 import sys
 import random
 
@@ -95,6 +95,7 @@ parser.add_argument('--shuffle', help='shuffle list of the buildings', action="s
 parser.add_argument('--fast_check', help='do not check for captcha, etc. in cahced files', action="store_true")
 parser.add_argument('--attrlist', help='The list of attributes with selectors to be extracted from HTML', default='attrlist.tsv')
 parser.add_argument('--houseid', help='provided id will be understood as house_id (single page will be processed)', action="store_true")
+parser.add_argument('--allfiles', help='process all files in the cache', action="store_true")
 #parser.add_argument('--socks_port', help='Tor sock port to connect to', default='9150')
 #parser.add_argument('--torctl_port', help='Tor control port to connect to', default='9151')
 args = parser.parse_args()
@@ -123,6 +124,9 @@ if args.extractor == 'none' and args.outputformat != 'csv':
 if args.fast_check and args.extractor != 'none':
     print 'fast_check only allowed when extractor=none'
     sys.exit(5)
+if args.allfiles and not args.cache_only:
+    print '--allfiles imply --cache_only'
+    args.cache_only = True
 
 def console_out(text):
     #write httplib error messages to console
@@ -477,8 +481,32 @@ def parse_house_page_original(soup):
                                       OTHER=other.encode('utf-8')))
     return True
 
+def write_house_attribute(result_set):
+    if args.outputformat == 'csv':
+        csvwriter_housedata.writerow(result_set)
+    else:
+        result_set['ATTR_NAME'] = result_set['ATTR_NAME'].decode('utf-8') if result_set['ATTR_NAME'] else None
+        result_set['FOUND_NAME'] = result_set['FOUND_NAME'].decode('utf-8') if result_set['FOUND_NAME'] else None
+        result_set['VALUE'] = result_set['VALUE'].decode('utf-8') if result_set['VALUE'] else None
+        sqcur.execute("insert into attrvals values (" + fieldnames_phld + ")", [ result_set[k] for k in fieldnames_data])
+
+
 def parse_house_page_attrlist(soup):
     """Parses a house page using attrlist information"""
+
+    # lat lon extractions
+    latlon_re = r'center: \[(\d+\.\d+),\s*(\d+\.\d+)\],'
+    latlon_match = re.search(latlon_re, soup.findAll('script')[11].text)
+    if not latlon_match:
+        latlon_match = re.search(latlon_re, soup.findAll('script')[12].text)
+    if latlon_match:
+        lat,lon = latlon_match.group(1),latlon_match.group(2)
+    else:
+        lat,lon = 'Not Found','Not Found'
+        print '\tlat,lon was not found'
+
+    write_house_attribute(dict(HOUSE_ID=house_id,ATTR_NAME='lat',FOUND_NAME='lat',ED_DIST=0,VALUE=lat))
+    write_house_attribute(dict(HOUSE_ID=house_id,ATTR_NAME='lon',FOUND_NAME='lon',ED_DIST=0,VALUE=lon))
 
     # create output variable name from the section names
     sect_attrs = ['section-rus', 'subsection-rus', 'attribute-rus', 'subattribute-rus', 'subsubattribute-rus']
@@ -524,13 +552,7 @@ def parse_house_page_attrlist(soup):
                                   ED_DIST=None,
                                   VALUE=None)
 
-            if args.outputformat == 'csv':
-                csvwriter_housedata.writerow(result_set)
-            else:
-                result_set['ATTR_NAME'] = result_set['ATTR_NAME'].decode('utf-8') if result_set['ATTR_NAME'] else None
-                result_set['FOUND_NAME'] = result_set['FOUND_NAME'].decode('utf-8') if result_set['FOUND_NAME'] else None
-                result_set['VALUE'] = result_set['VALUE'].decode('utf-8') if result_set['VALUE'] else None
-                sqcur.execute("insert into attrvals values (" + fieldnames_phld + ")", [ result_set[k] for k in fieldnames_data])
+            write_house_attribute(result_set)
 
         if args.outputformat == 'sqlite':
             conn.commit()
@@ -624,10 +646,21 @@ if __name__ == '__main__':
             f_housedata = open(f_housedata_name,'ab')
             csvwriter_housedata = csv.DictWriter(f_housedata, fieldnames=fieldnames_data)
 
-    if (args.houseid):
+    if args.houseid:
         res = get_housedata(house_link,str(args.id),None,None,None,None)
         if res == False:
             print 'Building data was not retrieved for id=', args.id
+    elif args.allfiles:
+        for f in glob.glob(args.originals_folder + '/*.html'):
+            mtch = re.search(r'(\d{7})\.html$', f)
+            if mtch:
+                house_id = mtch.group(1)
+                print 'Processing cached file', f, 'id', house_id
+                res = get_housedata(house_link,str(house_id),None,None,None,None)
+                if res == False:
+                    print 'Building data was not retrieved for id=', house_id
+            else:
+                print 'No house_id in ', f
     else:
         regs = get_data_links(args.id)
 
