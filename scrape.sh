@@ -11,3 +11,5 @@ time python -u get_reformagkh_data-all.py \
   --fast_check \
   "$CODE" "$OBL".data \
   | tee "$OBL"/download-$(date +'%FT%T').log
+
+exit $?

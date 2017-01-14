@@ -361,11 +361,12 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                 sys.exit(2)
             else:
                 print house_id, ': captcha received, invalidating cache, requesting new proxy, attempt #', captcha_count, 'sleep', captcha_count*30, 's'
-                time.sleep( captcha_count * 30 )
+                time.sleep( 60 )
                 invalidate_cache(house_id)
                 change_proxy()
                 captcha_count += 1
-                return False # leave house_id unprocessed
+                continue
+                #return False # leave house_id unprocessed
 
         if args.extractor == 'original':
             return parse_house_page_original(soup)
