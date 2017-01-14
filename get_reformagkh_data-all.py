@@ -360,10 +360,10 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                 print house_id, ': captcha received, running without tor, quitting...'
                 sys.exit(2)
             else:
-                print house_id, ': captcha received, invalidating cache, requesting new proxy, attempt #', captcha_count, 'sleep', captcha_count*30, 's'
-                time.sleep( 60 )
+                print house_id, ': captcha received, invalidating cache, requesting new proxy, attempt #', captcha_count, 'sleep 60s'
                 invalidate_cache(house_id)
                 change_proxy()
+                time.sleep( 60 )
                 captcha_count += 1
                 continue
                 #return False # leave house_id unprocessed
