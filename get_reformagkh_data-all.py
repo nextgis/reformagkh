@@ -360,11 +360,18 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                 print house_id, ': captcha received, running without tor, quitting...'
                 sys.exit(2)
             else:
-                print house_id, ': captcha received, invalidating cache, requesting new proxy, attempt #', captcha_count, 'sleep 60s'
                 invalidate_cache(house_id)
-                change_proxy()
-                time.sleep( 60 )
-                captcha_count += 1
+                if src == 'web':
+                    print house_id, ': captcha received, invalidating cache, requesting new proxy, attempt #', captcha_count, 'sleep 60s'
+                    change_proxy()
+                    time.sleep( 60 )
+                    captcha_count += 1
+                else:
+                    print house_id, ': captcha in cached file, invalidating'
+                    if args.cache_only:
+                        print "\tprocessing skipped because of --cahe_only"
+                    else:
+                        print "\trequesting page from the site"
                 continue
                 #return False # leave house_id unprocessed
 
