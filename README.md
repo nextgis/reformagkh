@@ -29,7 +29,7 @@ python get_reformagkh_data-v3.py 2280999 data/housedata.csv -of html
 ![Example1](/img/table.png)
 
 ##Веб-карта с результатами
-Демо: http://demo.nextgis.ru/ngw/resource/243/display
+Демо: http://maxim.nextgis.com/resource/644/display
 ![Example2](/img/map.png)
 
 ##TODO
