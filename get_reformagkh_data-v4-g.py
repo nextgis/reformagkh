@@ -174,8 +174,8 @@ def get_data_links(id):
 
 def check_captcha(soup):
     captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})  
-    addrnt = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' })
-    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or addrnt == None: 
+    address_p = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' }).text.strip()
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or address_p is None: 
         return True
     else:
         return False
