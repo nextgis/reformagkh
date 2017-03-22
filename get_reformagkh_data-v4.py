@@ -1,6 +1,10 @@
 #!/usr/bin/env python -u
 # -*- coding: utf-8 -*-
+# encoding=utf8  
+import sys  
 
+reload(sys)  
+sys.setdefaultencoding('utf8')
 #******************************************************************************
 #
 # get_reformagkh_data-v2.py
