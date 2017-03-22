@@ -173,10 +173,11 @@ def get_data_links(id):
     return regs
 
 def check_captcha(soup):
-    captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})    
-    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or len(soup)==67: 
+    captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})  
+    addrnt = soup.find('span', { 'class' : 'float-left loc_name_ohl width650 word-wrap-break-word' })
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or addrnt == None: 
         return True
-    else:    
+    else:
         return False
     
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
