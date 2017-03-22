@@ -174,7 +174,7 @@ def get_data_links(id):
 
 def check_captcha(soup):
     captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})    
-    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or u'Каптча' in str(soup): 
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or len(soup) < 100 : 
         return True
     else:
         return False
