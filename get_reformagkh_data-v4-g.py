@@ -174,9 +174,9 @@ def get_data_links(id):
 
 def check_captcha(soup):
     captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})    
-    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or len(soup) < 100 : 
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or len(soup)==67: 
         return True
-    else:
+    else:    
         return False
     
 def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
