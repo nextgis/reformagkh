@@ -2,11 +2,11 @@ reformagkh
 ==========
 Данные с сайта Реформа ЖКХ (http://www.reformagkh.ru) по многоквартирным жилым домам всех регионов РФ и инструмент для их получения/обновления.
 
-##Что это?
+## Что это?
 * Скрипт-граббер, сохраняет данные в формате CSV и оригиналы страниц.
 * Данные выкачанные для Москвы, Омска, Санкт-Петербурга, Екатеринбурга, Владивостока (32, 31, 25, 10, 4 тыс. домов).
 
-##Как запускать
+## Как запускать
 
 1. Находим идентификатор региона, который нужно скачать. Это может быть любой из уровней, скачиваться будут в т.ч. все подуровни. Идентификатор можно взять или в ![atd.csv](https://github.com/nextgis/reformagkh/blob/master/atd.csv) или непосредственно из ссылки (tid) вида `https://www.reformagkh.ru/myhouse?tid=2208192`.
 2. Убеждаемся, что рядом со скриптом присутствует файл atd.csv (его можно либо скачать тут же, либо сделать самому запустив другой скрипт `get_reformagkh_atd-v2.py`)
@@ -25,26 +25,26 @@ python get_reformagkh_data-v3.py 2280999 data/housedata.csv -of html
 
 ![Example3](/img/running.png)
 
-##Таблица с результатами (фрагмент)
+## Таблица с результатами (фрагмент)
 ![Example1](/img/table.png)
 
-##Веб-карта с результатами
+## Веб-карта с результатами
 Демо: http://maxim.nextgis.com/resource/644/display
 ![Example2](/img/map.png)
 
-##TODO
+## TODO
 
 * Поддерживаются не все параметры представленные на основном сайте
 
 
 License
--------------
+-------
 * Code - GNU GPL v2 or any later version
 * Data - unknown, possibly Public Domain
 
 Commercial support
-----------
-Нужны исправления или улучшения для парсера РеформыЖКХ? We provide custom development and support for this software. [Contact us](http://nextgis.ru/contact/) to discuss options!
+------------------
+Нужны исправления или улучшения для парсера РеформыЖКХ? Мы можем его доработать, [свяжитесь с нами](http://nextgis.ru/contact/)!
 
 [![http://nextgis.com](http://nextgis.ru/img/nextgis.png)](http://nextgis.com)
 
