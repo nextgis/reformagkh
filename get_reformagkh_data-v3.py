@@ -77,7 +77,7 @@ def get_content(link):
         try:
             res = session.get(link).text
         except:
-            time.sleep(3)
+            sleep(3)
             res = ''
         else:
             break
