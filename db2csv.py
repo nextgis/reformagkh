@@ -25,6 +25,12 @@ with open('template.csv', 'rb') as tmplfile:
     hdr = tmplreader.next()
     srcs = tmplreader.next()
 
+def record_csv():
+    global csv_row
+    csv_row[hdr.index('LatLong')] = "%s,%s" % (lat, lon)
+    csvwriter.writerow(csv_row)
+    csv_row = [ None ] * len(hdr)
+
 with open(args.output, 'wb') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL, encoding='utf-8')
@@ -32,20 +38,28 @@ with open(args.output, 'wb') as csvfile:
 
     cur_bldg = None
     csv_row = [ None ] * len(hdr)
+
     while True:
         tb_row = c.fetchone()
 
+        # the last database row
         if tb_row is None:
-            csvwriter.writerow(csv_row)
+            record_csv()
             break
 
         if cur_bldg != tb_row[0]:
             if cur_bldg:
-                csvwriter.writerow(csv_row)
-            csv_row = [ None ] * len(hdr)
+                record_csv()
             cur_bldg = tb_row[0]
 
+        # known rows
         if tb_row[1] in srcs:
             #print tb_row[1], srcs.index(tb_row[1])
             csv_row[srcs.index(tb_row[1])] = re.sub(r"\n\s{36}..$",'',tb_row[4],re.M)
             #csv_row[srcs.index(tb_row[1])] = tb_row[4]
+
+        # special rows
+        if tb_row[1] == 'lon':
+            lon = tb_row[4]
+        if tb_row[1] == 'lat':
+            lat = tb_row[4]
