@@ -19,6 +19,8 @@ conn = sqlite3.connect(args.input)
 c = conn.cursor()
 c.execute('SELECT * FROM attrvals')
 
+nodata_values = [u'Не заполнено', u'Не присвоен', u'Нет данных', u'-', u'Не определен', u'не присвоен', u'данные отсутствуют', u'не определен', u'без номера', u'не определён']
+
 # load CSV file with defintions of columns in the output file
 with open('template.csv', 'rb') as tmplfile:
     tmplreader = csv.reader(tmplfile, delimiter=',', quotechar='"', encoding='utf-8')
@@ -54,9 +56,12 @@ with open(args.output, 'wb') as csvfile:
 
         # known rows
         if tb_row[1] in srcs:
-            #print tb_row[1], srcs.index(tb_row[1])
-            csv_row[srcs.index(tb_row[1])] = re.sub(r"\n\s{36}..$",'',tb_row[4],re.M)
-            #csv_row[srcs.index(tb_row[1])] = tb_row[4]
+            try:
+                # do nothing if values is in nodata values
+                nodata_values.index(tb_row[4])
+            except ValueError:
+                # remove gabage from the end of some strings
+                csv_row[srcs.index(tb_row[1])] = re.sub(r"\n\s{36}..$",'',tb_row[4],re.M)
 
         # special rows
         if tb_row[1] == 'lon':
