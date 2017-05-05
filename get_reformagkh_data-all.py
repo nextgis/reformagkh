@@ -25,6 +25,7 @@
 #           --outputformat FORMAT specify output format
 #               csv -- CSV (default)
 #               sqlite -- sqlite database (only implemented for attrlist data extractor)
+#               pg --
 #           --reload_list reload list of the buildings from the site even if cache file exixts
 # Examples:
 #      python get_reformagkh_data-v2.py 2280999 data/housedata2.csv -o html_orig
@@ -72,6 +73,8 @@ import datetime
 import re
 import editdistance
 import sqlite3
+import psycopg2 # TODO: must load on demand
+import psycopg2.extras
 import time
 #from pytest import attrlist
 
@@ -82,13 +85,13 @@ import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region (default) or house ID')
-parser.add_argument('output_name', help='Where to store the results (path to output file)')
+parser.add_argument('output_name', help='Where to store the results (path to output file or database URI)')
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 parser.add_argument('--no_tor', help='Do not use tor connection', action="store_true")
 parser.add_argument('--cache_only', help='Do not connect to the web site, use only cached entries', action="store_true")
 parser.add_argument('--extractor', help='Data extractor to use', default='original', choices=['original', 'attrlist', 'none'])
 parser.add_argument('--parser', help='HTML Parser to use', default='html.parser', choices=['html.parser', 'lxml'])
-parser.add_argument('--outputformat', help='output format', default='csv', choices=['csv', 'sqlite'])
+parser.add_argument('--outputformat', help='output format', default='csv', choices=['csv', 'sqlite', 'pg'])
 parser.add_argument('--outputmode', help='output mode', default='append', choices=['append', 'overwrite'])
 parser.add_argument('--reload_list', help='reload list of the buildings even if cache file exixts', action="store_true")
 parser.add_argument('--shuffle', help='shuffle list of the buildings', action="store_true")
@@ -105,6 +108,7 @@ dirsep = '/' if not os.name == 'nt' else '\\'
 if args.originals_folder:
     if not args.originals_folder.endswith(dirsep): args.originals_folder = args.originals_folder + dirsep
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
+    region_name = args.originals_folder[:-1]
 if args.cache_only:
     if not args.originals_folder:
         print 'cache-only requested but originals folder was not specified, quitting...'
@@ -493,12 +497,13 @@ def parse_house_page_original(soup):
 def write_house_attribute(result_set):
     if args.outputformat == 'csv':
         csvwriter_housedata.writerow(result_set)
-    else:
+    elif args.outputformat == 'sqlite':
         result_set['ATTR_NAME'] = result_set['ATTR_NAME'].decode('utf-8') if result_set['ATTR_NAME'] else None
         result_set['FOUND_NAME'] = result_set['FOUND_NAME'].decode('utf-8') if result_set['FOUND_NAME'] else None
         result_set['VALUE'] = result_set['VALUE'].decode('utf-8') if result_set['VALUE'] else None
         sqcur.execute("insert into attrvals values (" + fieldnames_phld + ")", [ result_set[k] for k in fieldnames_data])
-
+    else: # outputformat == 'pg'
+        psycopg2.extras.execute_values(pgcur, pgquery, [[result_set[k] for k in fieldnames_data]], template=None)
 
 def parse_house_page_attrlist(soup):
     """Parses a house page using attrlist information"""
@@ -514,8 +519,8 @@ def parse_house_page_attrlist(soup):
         lat,lon = 'Not Found','Not Found'
         print '\tlat,lon was not found'
 
-    write_house_attribute(dict(HOUSE_ID=house_id,ATTR_NAME='lat',FOUND_NAME='lat',ED_DIST=0,VALUE=lat))
-    write_house_attribute(dict(HOUSE_ID=house_id,ATTR_NAME='lon',FOUND_NAME='lon',ED_DIST=0,VALUE=lon))
+    write_house_attribute(dict(REGION=region_name,HOUSE_ID=house_id,ATTR_NAME='lat',FOUND_NAME='lat',ED_DIST=0,VALUE=lat))
+    write_house_attribute(dict(REGION=region_name,HOUSE_ID=house_id,ATTR_NAME='lon',FOUND_NAME='lon',ED_DIST=0,VALUE=lon))
 
     # create output variable name from the section names
     sect_attrs = ['section-rus', 'subsection-rus', 'attribute-rus', 'subattribute-rus', 'subsubattribute-rus']
@@ -549,13 +554,15 @@ def parse_house_page_attrlist(soup):
 
                 found_attr_value = result_value[0].text.strip().encode('utf-8') if result_value else 'not found'
 
-                result_set = dict(HOUSE_ID=house_id,
+                result_set = dict(REGION=region_name,
+                                  HOUSE_ID=house_id,
                                   ATTR_NAME=attr_name,
                                   FOUND_NAME=found_attr_name,
                                   ED_DIST=editdistance.eval(expected_attr_name,found_attr_name),
                                   VALUE=found_attr_value)
             else: # not found
-                result_set = dict(HOUSE_ID=house_id,
+                result_set = dict(REGION=region_name,
+                                  HOUSE_ID=house_id,
                                   ATTR_NAME=attr_name,
                                   FOUND_NAME=None,
                                   ED_DIST=None,
@@ -563,7 +570,7 @@ def parse_house_page_attrlist(soup):
 
             write_house_attribute(result_set)
 
-        if args.outputformat == 'sqlite':
+        if args.outputformat in ('sqlite', 'pg'):
             conn.commit()
 
 def load_attrlist():
@@ -630,8 +637,8 @@ if __name__ == '__main__':
     elif args.extractor == 'attrlist':
         # load csv file with attribute descriptions
         attrlist = load_attrlist()
-        fieldnames_data = ('HOUSE_ID','ATTR_NAME','FOUND_NAME','ED_DIST','VALUE')
-        fieldnames_type = ('TEXT','TEXT','TEXT','INTEGER','TEXT')
+        fieldnames_data = ('REGION', 'HOUSE_ID','ATTR_NAME','FOUND_NAME','ED_DIST','VALUE')
+        fieldnames_type = ('TEXT', 'TEXT','TEXT','TEXT','INTEGER','TEXT')
         fieldnames_phld = ', '.join([ ':' + s for s in fieldnames_data]) #placeholder for sqlite
 
     # create an output file housedata.csv with the requested field names
@@ -645,11 +652,19 @@ if __name__ == '__main__':
                 fields_str = ','.join(fieldnames_data)
                 f_housedata.write(fields_str+'\n')
                 f_housedata.close()
-        else: # sqlite format for attrlist data extractor
+        elif args.outputformat == 'sqlite': # sqlite format for attrlist data extractor
             conn = sqlite3.connect(f_housedata_name)
             sqcur = conn.cursor()
             sqcur.execute('create table if not exists attrvals(' + ', '.join([ s+' '+t for s,t in zip(fieldnames_data, fieldnames_type)]) + ', primary key(HOUSE_ID, ATTR_NAME) )')
             conn.commit()
+        else: # args.outputformat == 'pg':
+            try:
+                conn = psycopg2.connect(args.output_name)
+                pgcur = conn.cursor()
+                pgquery = 'insert into attrvals_all(region, house_id, attr_name, found_name, ed_dist, value) values %s'
+            except psycopg2.Error as e:
+                print 'Failed to open database connection to', args.output_name, e
+                sys.exit(6)
 
         if args.outputformat == 'csv':
             f_housedata = open(f_housedata_name,'ab')
