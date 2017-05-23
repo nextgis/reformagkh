@@ -26,7 +26,7 @@ create table attrvals_all(
 
 drop view if exists attrvals;
 create view attrvals as
-select distinct on (ts, region, house_id, attr_name)
+select distinct on (region, house_id, attr_name)
   region,
   house_id,
   attr_name,
@@ -35,5 +35,5 @@ select distinct on (ts, region, house_id, attr_name)
   "value",
   ts
 from attrvals_all
-order by ts, region, house_id, attr_name
+order by region, house_id, attr_name, ts desc
 ;
