@@ -352,13 +352,19 @@ def get_housedata(link,house_id,lvl1_name,lvl1_id,lvl2_name,lvl2_id):
                     invalidate_cache(house_id)
                     continue
 
-        #if u'Ошибка' in soup.text:
-        #    print house_id, ': unspecified error from the server'
-        #    return False
+        if u'Реформа ЖКХ Ошибка' in soup.text:
+            if args.cache_only:
+                print house_id, ': unspecified error page in cache, skipping'
+                return False
+            else:
+                print 'Unrecorgnized error page, the site may be mufunctioning, quitting...'
+                print 'TODO: check if this error page is transient, modify code accordingly'
+                print 'You may have to remove cached page for building ', house_id
+                sys.exit(-1)
 
         if check_captcha(soup):
             if args.cache_only:
-                print house_id, ': captcha page in cache but --no_cache set, skipping'
+                print house_id, ': captcha page in cache, skipping'
                 return False
             elif args.no_tor:
                 print house_id, ': captcha received, running without tor, quitting...'
