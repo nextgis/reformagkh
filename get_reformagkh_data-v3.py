@@ -59,7 +59,7 @@ parser.add_argument('-o','--overwrite', action="store_true", help='Overwite all,
 parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
 if args.originals_folder:
-    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
+    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '/'
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
     
 def console_out(text):
@@ -174,7 +174,7 @@ def get_data_links(id):
 
 def check_captcha(soup):
     captcha = soup.find('form', { 'name' : 'request_limiter_captcha'})    
-    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup): 
+    if captcha != None or u'Каптча' in soup.text or 'captcha' in str(soup) or len(soup)==67 or u'Каптча' in str(soup).decode('utf8', 'ignore'): 
         return True
     else:
         return False
@@ -355,8 +355,8 @@ if __name__ == '__main__':
                 else:
                     houses_ids = get_house_list('http://www.reformagkh.ru/myhouse/list?tid=' + reg[5])
                 
-                pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)), ' ', ETA()]).start()
-                pbar.maxval = len(houses_ids)
+                pbar = ProgressBar(widgets=[Bar('=', '[', ']'), ' ', Counter(), ' of ' + str(len(houses_ids)+1), ' ', ETA()]).start()
+                pbar.maxval = len(houses_ids)+1
                 
                 i = 0
                 for house_id in houses_ids:
