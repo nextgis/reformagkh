@@ -59,11 +59,7 @@ parser.add_argument('-of','--originals_folder', help='Folder to save original ht
 args = parser.parse_args()
 dirsep = '/' if not os.name == 'nt' else '\\' 
 if args.originals_folder:
-<<<<<<< HEAD
-    if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '/'
-=======
     if not args.originals_folder.endswith(dirsep): args.originals_folder = args.originals_folder + dirsep
->>>>>>> 1788f1b77d579098b6b04fed896c2a1527305882
     if not os.path.exists(args.originals_folder): os.mkdir(args.originals_folder)
     
 def console_out(text):
