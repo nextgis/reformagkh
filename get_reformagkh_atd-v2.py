@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 #******************************************************************************
-#
 # get_reformagkh_atd.py
 # ---------------------------------------------------------
 # Grabs reformagkh.ru data on administrative division which is further used for data grabbing.
@@ -13,11 +12,11 @@
 #      where:
 #           -h           show this help message and exit
 #           output_name  Where to store the results (path to CSV file)
-#            -o ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
+#            -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
 #      python get_reformagkh_atd.py -o data_orig data/atd.csv
 #
-# Copyright (C) 2014-2016 Maxim Dubinin (sim@gis-lab.info)
+# Copyright (C) 2014-2017 Maxim Dubinin (maxim.dubinin@nextgis.com)
 # Created: 6.04.2016
 #
 # This source is free software; you can redistribute it and/or modify it under
@@ -50,7 +49,7 @@ from stem.control import Controller
 
 parser = argparse.ArgumentParser()
 parser.add_argument('output_name', help='Where to store the results (path to CSV file)')
-parser.add_argument('-o','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
+parser.add_argument('-of','--originals_folder', help='Folder to save original html files. Skip saving if empty.')
 args = parser.parse_args()
 if args.originals_folder:
     if not args.originals_folder.endswith('\\'): args.originals_folder = args.originals_folder + '\\'
