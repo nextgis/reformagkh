@@ -146,16 +146,16 @@ def get_house_list(link):
     size = check_size(link)
     if size == 0: size = check_size(link)
     
-    pages = (int(size) / 10000) + 1
+    pages = (int(size) / 20) + 1
     
     houses_ids = []
     for page in range(1,pages+1):
-        res = get_content(link + '&page=' + str(page) + '&limit=10000')
+        res = get_content(link + '&page=' + str(page))
         soup = BeautifulSoup(''.join(res), 'html.parser')
         captcha = check_captcha(soup)
     
         while captcha == True:
-            res = get_content(link + '&page=' + str(page) + '&limit=10000')
+            res = get_content(link + '&page=' + str(page))
             soup = BeautifulSoup(''.join(res), 'html.parser')
             captcha = check_captcha(soup)
             change_proxy()
