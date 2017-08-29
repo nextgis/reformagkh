@@ -16,7 +16,7 @@
 #           output_name  Where to store the results (path to CSV file)
 #           -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
-#      python get_reformagkh_data-v3.py 2280999 data/housedata2.csv -of html_orig
+#      python get_reformagkh_myhouse.py 2280999 data/housedata2.csv -of html_orig
 #
 # Copyright (C) 2014-2017 Maxim Dubinin (maxim.dubinin@nextgis.ru)
 # Created: 18.03.2014
