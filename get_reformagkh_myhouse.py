@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 #******************************************************************************
-# get_reformagkh_data-v3.py
+# get_reformagkh_myhouse.py
 # ---------------------------------------------------------
 # Grab reformagkh.ru data on buildings, put it in the CSV table.
 # More: https://github.com/nextgis/reformagkh
 #
 # Usage: 
-#      usage: get_reformagkh_data-v3.py [-h] [-o ORIGINALS_FOLDER] id output_name
+#      usage: get_reformagkh_myhouse.py [-h] [-o ORIGINALS_FOLDER] id output_name
 #      where:
 #           -h           show this help message and exit
 #           id           Region ID
