@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 #******************************************************************************
-#
 # get_reformagkh_data-v3.py
 # ---------------------------------------------------------
 # Grab reformagkh.ru data on buildings, put it in the CSV table.
@@ -17,9 +16,9 @@
 #           output_name  Where to store the results (path to CSV file)
 #           -of ORIGINALS_FOLDER  Folder to save original html files. Skip saving if empty.
 # Examples:
-#      python get_reformagkh_data-v3.py 2280999 data/housedata2.csv -o html_orig
+#      python get_reformagkh_data-v3.py 2280999 data/housedata2.csv -of html_orig
 #
-# Copyright (C) 2014-2017 Maxim Dubinin (sim@gis-lab.info)
+# Copyright (C) 2014-2017 Maxim Dubinin (maxim.dubinin@nextgis.ru)
 # Created: 18.03.2014
 #
 # This source is free software; you can redistribute it and/or modify it under
@@ -50,7 +49,7 @@ from time import sleep
 import requesocks
 from stem import Signal
 from stem.control import Controller
-import os
+import os,sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('id', help='Region ID')
