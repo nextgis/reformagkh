@@ -42,9 +42,9 @@ License
 * Code - GNU GPL v2 or any later version
 * Data - unknown, possibly Public Domain
 
-Commercial support
-------------------
-Нужны исправления или улучшения для парсера РеформыЖКХ? Мы можем его доработать, [свяжитесь с нами](http://nextgis.ru/contact/)!
+Коммерческая поддержка
+----------------------
+Нужны исправления или улучшения для парсера РеформыЖКХ? Нужна выгрузка данных? [Свяжитесь с нами](http://nextgis.ru/contact/)!
 
 [![http://nextgis.com](http://nextgis.ru/img/nextgis.png)](http://nextgis.com)
 
