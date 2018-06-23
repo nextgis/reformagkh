@@ -7,9 +7,10 @@ reformagkh
 * Переселению граждан
 * Капитальному ремонту
 
-[Перечень выгружаемых](https://docs.google.com/spreadsheets/d/1FvqhdJF5IcQ9hbI_OD2JWdIjimnH_9RIvgjMrJigSg4/edit#gid=1154089007) полей (можно расширять) можно увидеть.
+[Перечень выгружаемых](https://docs.google.com/spreadsheets/d/1FvqhdJF5IcQ9hbI_OD2JWdIjimnH_9RIvgjMrJigSg4/edit#gid=1154089007) полей (можно расширять) и примеры данных.
 
-**Внимание! Мы не поддерживаем этот набор скриптов и скорее всего они у вас не заработают. Если вам нужны данные - пишите нам на: http://data.nextgis.com**
+**Внимание! Мы не поддерживаем этот набор скриптов и скорее всего они у вас не заработают. 
+Если вам нужны данные - пишите нам на: http://data.nextgis.com**
 
 ![Example3](/img/running.png)
 
