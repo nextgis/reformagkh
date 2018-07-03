@@ -5,6 +5,7 @@ Region = namedtuple('Region', 'id formalname shortname')
 Area = namedtuple('Area', 'id formalname shortname')
 City = namedtuple('City', 'id formalname shortname')
 Street = namedtuple('Street', 'id, formalname shortname')
+House = namedtuple('House', 'id, number building block letter address')
 
 class AddressItem:
     def __init__(self, item, data=None):
@@ -25,11 +26,12 @@ class AddressItem:
 
 
 class Address:
-    def __init__(self, region, area, city, street, data=None):
+    def __init__(self, region, area, city, street, house, data=None):
         self.region = region
         self.area = area
         self.city = city
         self.street = street
+        self.house = house
         self.data = data
 
     def __eq__(self, other):
@@ -41,12 +43,14 @@ class Address:
             return False
         if self.street != other.street:
             return False
+        if self.house != other.house:
+            return False
 
         return True
 
 
     def __repr__(self):
-        return "Address(region={self.region!r}, area={self.area!r}, city={self.city!r}, street={self.street!r}, data={self.data!r})" 
+        return "Address(region={self.region!r}, area={self.area!r}, city={self.city!r}, street={self.street!r}, house={self.house!r}, data={self.data!r})" 
 
 
 
@@ -64,9 +68,10 @@ class AddressTree():
         area = address.area
         city = address.city
         street = address.street
+        house = address.house
 
         subtree = self.tree
-        for level in [region, area, city, street]:
+        for level in [region, area, city, street, house]:
             try:
                 subtree = subtree[level]
             except KeyError:
@@ -86,16 +91,17 @@ if __name__ == "__main__":
     a = AddressItem(Area('gg', 'edf', 'fgfg'))
     c = AddressItem(City('cc', 'edf', 'fgfg'))
     s = AddressItem(Street('ss', 'edf', 'fgfg'))
-
-    import ipdb; ipdb.set_trace()
+    h = AddressItem(Street('hh', 'edf', 'fgfg'))
 
     s1 = eval(repr(s))
 
-    adr = Address(r, a, c, s, data="New house with black walls")
+    adr = Address(r, a, c, s, h, data="New house with black walls")
     t = AddressTree()
 
     t.add_item(adr)
     print(t)
 
     t1 = eval(repr(t))
+
+    print(t1)
 
