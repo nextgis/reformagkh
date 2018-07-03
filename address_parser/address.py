@@ -17,14 +17,11 @@ class AddressItem:
         else:
             return self.item.id == other.item.id
 
-    def __rep__(self):
-        return "AddressItem(item=%r, data=%r)" % (self.item, self.data)
-
-    def __str__(self):
-        return self.__rep__()
+    def __repr__(self):
+        return 'AddressItem(item={item!r}, data={data!r})'.format(item=self.item, data=self.data) 
 
     def __hash__(self):
-        return hash(self.__rep__())
+        return hash(self.__repr__())
 
 
 class Address:
@@ -48,16 +45,18 @@ class Address:
         return True
 
 
-    def __rep__(self):
-        return "Address(region=%r, area=%r, city=%r, street=%r, data=%r)" % (self.region. self.area, self.city, self.street, self.data)
+    def __repr__(self):
+        return "Address(region={self.region!r}, area={self.area!r}, city={self.city!r}, street={self.street!r}, data={self.data!r})" 
 
-    def __str__(self):
-        return self.__rep__()
 
 
 class AddressTree():
-    def __init__(self):
-        self.tree = dict()
+    def __init__(self, tree=None):
+        if tree is None:
+            self.tree = dict()
+        else:
+            assert isinstance(tree, {}.__class__)
+            self.tree = tree
 
 
     def add_item(self, address):
@@ -77,24 +76,26 @@ class AddressTree():
         subtree['data'] = address.data
         
 
-    def __rep__(self):
-        return "AddressTree(%r)" % (self.tree)
-
-    def __str__(self):
-        return self.__rep__()
+    def __repr__(self):
+        return "AddressTree(tree=%r)" % (self.tree)
 
 
 if __name__ == "__main__":
     # Some examples:
-    r = Region('rr', 'edf', 'fgfg')
-    a = Area('gg', 'edf', 'fgfg')
-    c = City('cc', 'edf', 'fgfg')
-    s = Street('ss', 'edf', 'fgfg')
+    r = AddressItem(Region('rr', 'edf', 'fgfg'))
+    a = AddressItem(Area('gg', 'edf', 'fgfg'))
+    c = AddressItem(City('cc', 'edf', 'fgfg'))
+    s = AddressItem(Street('ss', 'edf', 'fgfg'))
 
+    import ipdb; ipdb.set_trace()
+
+    s1 = eval(repr(s))
 
     adr = Address(r, a, c, s, data="New house with black walls")
     t = AddressTree()
 
     t.add_item(adr)
     print(t)
+
+    t1 = eval(repr(t))
 

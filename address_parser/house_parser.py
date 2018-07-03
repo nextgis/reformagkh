@@ -40,6 +40,12 @@ def add_row_to_tree(tree, row):
         area = Area(id=row['area_id'], formalname=row['formalname_area'], shortname=row['shortname_area'])
         city = City(id=row['city_id'], formalname=row['formalname_city'], shortname=row['shortname_city'])
         street = Street(id=row['street_id'], formalname=row['formalname_street'], shortname=row['shortname_street'])
+
+        region = AddressItem(region)
+        area = AddressItem(area)
+        city = AddressItem(city)
+        street = AddressItem(street)
+
         address = Address(region, area, city, street, data="houseguid=%r" % (row['houseguid']))
 
         tree.add_item(address)
