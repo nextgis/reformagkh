@@ -60,22 +60,10 @@ def main():
     t2 = open(tree2).read()
     t2 = eval(t2)
 
-    print(t1.tree.keys())
-    print(t2.tree.keys())
-
-    y = t1.tree.keys()[1]
-    x = t2.tree.keys()[0]
-    print(x.distance(y))
-
-
-    y = t1.tree.keys()[0]
-    x = t2.tree.keys()[1]
-    print(x.distance(y))
-
-
-    y = t1.tree.keys()[1]
-    x = t2.tree.keys()[1]
-    print(x.distance(y))
+    for a1 in t1.get_address_items():
+        for a2 in t2.get_address_items():
+            print(a1.distance(a2), a1, a2)
+        print('')
 
 
 if __name__ == "__main__":

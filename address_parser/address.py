@@ -24,8 +24,8 @@ class AddressItem:
         p1 = self.get_item_parts()
         p2 = other.get_item_parts()
         # drop Id:
-        p1 = p1[1: ]
-        p2 = p2[1: ]
+        p1 = p1[1:]
+        p2 = p2[1:]
 
         dists = []
         for i in range(len(p1)):
@@ -61,7 +61,7 @@ class Address:
         self.data = data
 
     def __eq__(self, other):
-        if self.region !=other.region:
+        if self.region != other.region:
             return False
         if self.area != other.area:
             return False
@@ -88,6 +88,18 @@ class AddressTree():
             assert isinstance(tree, {}.__class__)
             self.tree = tree
 
+    def get_address_items(self):
+        return self.tree.keys()
+
+    def get_subtree(self, address_item):
+        return self.tree[address_item]
+
+    def get_subtrees(self):
+        subtrees = []
+        for key in self.get_address_items():
+            subtrees.append(self.get_subtree(key))
+
+        return subtrees
 
     def add_item(self, address):
         region = address.region
