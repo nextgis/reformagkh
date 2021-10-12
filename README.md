@@ -1,16 +1,16 @@
 reformagkh
 ==========
-Данные с сайта Реформа ЖКХ (http://www.reformagkh.ru) по всем регионам РФ по:
+Данные с сайта Реформа ЖКХ (https://www.reformagkh.ru):
 
 * Многоквартирным жилым домам
 * Управляющим компаниям
 * Переселению граждан
 * Капитальному ремонту
 
-[Перечень выгружаемых](https://docs.google.com/spreadsheets/d/1FvqhdJF5IcQ9hbI_OD2JWdIjimnH_9RIvgjMrJigSg4/edit#gid=1154089007) полей (можно расширять) и примеры данных.
-
 **Внимание! Мы не поддерживаем этот набор скриптов и скорее всего они у вас не заработают. 
-Если вам нужны данные - пишите нам на: http://data.nextgis.com**
+Если вам нужны актуальные данные - вам сюда: https://data.nextgis.com**
+
+[Перечень выгружаемых](https://docs.google.com/spreadsheets/d/1FvqhdJF5IcQ9hbI_OD2JWdIjimnH_9RIvgjMrJigSg4/edit#gid=1154089007).
 
 ![Example3](/img/running.png)
 
